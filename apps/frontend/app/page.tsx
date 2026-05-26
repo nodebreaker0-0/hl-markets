@@ -15,11 +15,13 @@ import {
   fetchValidatorL1Votes,
   fetchValidatorSummaries,
   fetchBackendGovernanceList,
+  fetchBackendQuestionList,
   fetchOutcomeMeta,
   fetchAllMids,
   type ValidatorL1VotePending,
   type ValidatorSummary,
   type BackendGovernanceRow,
+  type BackendOutcomeQuestionRow,
   type OutcomeMetaEntry,
   type OutcomeQuestion,
   type AllMidsResponse,
@@ -122,6 +124,7 @@ export default function HomePage() {
   const [validators, setValidators] = useState<ValidatorSummary[]>([]);
   const [outcomes, setOutcomes] = useState<OutcomeMetaEntry[]>([]);
   const [questions, setQuestions] = useState<OutcomeQuestion[]>([]);
+  const [settledQuestions, setSettledQuestions] = useState<BackendOutcomeQuestionRow[]>([]);
   const [mids, setMids] = useState<AllMidsResponse>({});
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -152,22 +155,25 @@ export default function HomePage() {
     }
   }, []);
 
-  // Historical tab: settled / expired outcome governance only (filtered at
-  // the backend via variant=outcome). Validator metadata still comes from HF.
+  // Historical tab: settled / expired outcome governance + settled questions.
+  // Questions persist in the indexer's outcome_question table once HF removes
+  // them from outcomeMeta. Validator metadata still comes from HF.
   const loadHistorical = useCallback(async (n: Network) => {
     setLoading(true);
     setErr(null);
     try {
-      const [resp, summaries] = await Promise.all([
+      const [govResp, qResp, summaries] = await Promise.all([
         fetchBackendGovernanceList({
           network: n,
           status: 'historical',
           variant: 'outcome',
           limit: 100,
         }),
+        fetchBackendQuestionList(n, 'settled'),
         fetchValidatorSummaries(n),
       ]);
-      setItems(resp.rows.map(backendRowToItem));
+      setItems(govResp.rows.map(backendRowToItem));
+      setSettledQuestions(qResp.rows);
       setValidators(summaries);
       setLoadedAt(Date.now());
     } catch (e) {
@@ -276,15 +282,15 @@ export default function HomePage() {
             onRefresh={() => loadMarkets(network)}
           />
         ) : (
-          <ActiveSection
+          <HistoricalSection
             items={visible}
             validators={validators}
+            settledQuestions={settledQuestions}
             network={network}
             loading={loading}
             err={err}
             loadedAt={loadedAt}
             onRefresh={() => loadHistorical(network)}
-            label="historical"
           />
         )}
 
@@ -363,6 +369,158 @@ function ActiveSection(props: {
         </div>
       )}
     </section>
+  );
+}
+
+function HistoricalSection(props: {
+  items: GovernanceItem[];
+  validators: ValidatorSummary[];
+  settledQuestions: BackendOutcomeQuestionRow[];
+  network: Network;
+  loading: boolean;
+  err: string | null;
+  loadedAt: number | null;
+  onRefresh: () => void;
+}) {
+  const {
+    items,
+    validators,
+    settledQuestions,
+    network,
+    loading,
+    err,
+    loadedAt,
+    onRefresh,
+  } = props;
+
+  // Most-recently-settled first.
+  const sortedQ = useMemo(
+    () =>
+      [...settledQuestions].sort(
+        (a, b) => Number(b.settledAt ?? 0) - Number(a.settledAt ?? 0),
+      ),
+    [settledQuestions],
+  );
+
+  const empty = items.length === 0 && sortedQ.length === 0;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between text-xs text-hl-subtle">
+        <span>
+          {loading
+            ? 'loading…'
+            : loadedAt
+              ? `fresh as of ${new Date(loadedAt).toLocaleTimeString()} · indexer · auto-refresh 30s`
+              : ' '}
+        </span>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="rounded-full bg-hl-surface px-3 py-1 text-xs text-hl-text ring-1 ring-hl-border hover:bg-hl-border disabled:opacity-40"
+        >
+          refresh
+        </button>
+      </div>
+
+      {err && (
+        <div className="rounded-2xl border border-mainnet/40 bg-mainnet/10 p-3 text-sm text-mainnet">
+          {err}
+        </div>
+      )}
+
+      {!err && empty && !loading && (
+        <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-8 text-center text-sm text-hl-subtle">
+          No historical outcomes on {network} yet — the indexer captures
+          settled questions and expired governance after they fall off HF.
+        </div>
+      )}
+
+      {sortedQ.length > 0 && (
+        <>
+          <h2 className="pt-2 text-xs uppercase tracking-widest text-hl-subtle">
+            Settled questions
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {sortedQ.map((q) => (
+              <SettledQuestionCard key={`${network}-q-${q.questionId}`} q={q} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {items.length > 0 && (
+        <>
+          {sortedQ.length > 0 && (
+            <h2 className="pt-2 text-xs uppercase tracking-widest text-hl-subtle">
+              Settled / expired governance
+            </h2>
+          )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {items.map((item) => (
+              <GovernanceCard
+                key={`${item.network}-${item.govId}`}
+                item={item}
+                ctx={{ validators }}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** A question that fell off HF outcomeMeta — the indexer remembered it.
+ *  Surfaces the winner (settledNamedOutcomes[0]) when known. */
+function SettledQuestionCard({ q }: { q: BackendOutcomeQuestionRow }) {
+  const title = questionLabel(q.name, q.description ?? '');
+  const winnerId = q.settledNamedOutcomes[0] ?? null;
+  const settledAt = q.settledAt ? new Date(Number(q.settledAt)) : null;
+  return (
+    <Link
+      href={`/q?id=${q.questionId}`}
+      className="flex flex-col gap-2 rounded-2xl border border-hl-border bg-hl-surface p-4 transition-colors hover:border-hl-mint/50"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-base font-semibold leading-snug text-hl-text">
+          {title}
+        </h3>
+        <span className="shrink-0 rounded-full bg-hl-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-hl-subtle ring-1 ring-hl-border">
+          resolved
+        </span>
+      </div>
+
+      {winnerId !== null ? (
+        <div className="rounded-xl border border-hl-mint/40 bg-hl-mint/10 p-2 text-[12px] text-hl-mint">
+          <span className="mr-1 text-[10px] uppercase tracking-widest">winner</span>
+          outcome <code className="mono">#{winnerId}</code>
+        </div>
+      ) : (
+        <div className="text-[11px] text-hl-subtle">
+          resolved with no winning option (fallback wins)
+        </div>
+      )}
+
+      <div className="text-[10px] text-hl-subtle">
+        {q.namedOutcomes.length} options · fallback #{q.fallbackOutcome}
+      </div>
+      <div className="flex justify-between text-[10px] text-hl-subtle">
+        <span>question #{q.questionId}</span>
+        {settledAt && (
+          <span>
+            settled{' '}
+            {settledAt.toLocaleString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
+        )}
+      </div>
+    </Link>
   );
 }
 

@@ -4,11 +4,17 @@
 
 ### I. Backend Has Zero Key Custody (NON-NEGOTIABLE)
 
-hl-markets 의 백엔드는 사용자 / validator / delegator 의 private key, mnemonic, agent key 를 **절대 받지 않는다**. 가상투표는 client-side EIP-712 sign 후 서버에 signed message + signature 만 보낸다. 서버는 signature 만 검증하고 voter 주소는 recovery 로만 결정. **key 가 서버에 도달하는 path 자체가 존재하지 않는다**.
+hl-markets 의 백엔드는 사용자의 private key, mnemonic, agent key 를 **절대 받지 않는다**. 모든 sign 은 client-side wallet 에서 발생하고, 서버는 (a) signed payload + signature 만 받거나 (b) 사용자가 만든 HL action JSON 을 byte-for-byte 그대로 HF `/exchange` 로 forward 한다. **key 가 서버에 도달하는 path 자체가 존재하지 않는다**.
 
 ### II. Signed Messages Over Trust (NON-NEGOTIABLE)
 
-가상투표 / 의견 등록 모든 mutating action 은 EIP-712 typed-data sign 으로 인증한다. 서버는 항상 signature recovery → expected signer 검증 → DB save. **Auth header / Cookie / API key 같은 long-lived 토큰 없음** (운영자용 admin 가 필요해지면 별도 검토).
+모든 mutating action 은 검증 가능한 signature 로 인증한다:
+
+- **Phase J.1 session sign-in**: EIP-712 typed-data 1회 sign → backend recovery → JWT (HttpOnly cookie, 24h) 발급. JWT 안에 recovered address.
+- **Phase J.2 chat message**: session JWT 만 검증. 메시지마다 EIP sign 불요 (UX trade-off, 토큰은 wallet ownership 증명을 이미 cover).
+- **Phase J.5 trade**: HL action signing (1337 chainId, validator-spec) → backend 가 sig + action JSON 받아 `/exchange` 그대로 forward, 검증은 HF 책임.
+
+Long-lived token 은 24h TTL + DB 의 `chat_session` row 로 revoke 가능. 그 이상은 재-sign.
 
 ### III. Idempotent Reads
 
@@ -45,7 +51,15 @@ backend artifact 는 단일 Docker image. Mac local (`docker-compose up`), Railw
 
 ### X. Tier Gating
 
-Phase A → B → C → D → E → F → G → H → I 순서. 앞 Phase 의 exit criteria 미충족 시 다음 Phase 의 핵심 코드는 dead-path 로만.
+Phase A → B → C → E → F → H → I → J 순서 (D, G 는 v0.3 pivot 에서 제거). Phase J 도 하위 J.1 → J.2 → J.3 → J.4 → J.5 순서.
+
+### XI. Trade Safety (NON-NEGOTIABLE)
+
+Phase J.5 의 backend `/trade-forward` route 는:
+1. 사용자가 sign 한 action JSON 을 **byte-for-byte 보존**하여 HF `/exchange` 로 forward. `coin`, `side`, `sz`, `px`, `tif` 어떤 필드도 수정 금지.
+2. `builder` 필드는 (configured Builder Code 값이 env 에 있고 사용자가 UI 에서 "Apply builder fee" 체크박스를 명시 활성화한 경우에만) action 옆에 사용자가 sign 하기 *전* UI 가 표시. backend 가 임의 추가 금지.
+3. HF 의 응답 (성공/실패) 을 사용자에게 그대로 노출. backend 가 응답 마사지 0.
+4. UI 는 sign 전에 (a) order 4 fields, (b) builder fee bps + 예상 비용 USD, (c) target asset key 4 항목을 prominent 하게 표시.
 
 ## Operational Constraints
 
@@ -69,17 +83,18 @@ Phase A → B → C → D → E → F → G → H → I 순서. 앞 Phase 의 ex
 
 ### Constitution gate grep (예시)
 
-- I/II: `apps/api/src/` 내 `privateKey|mnemonic|secret` literal grep 0건. routes 에서 sig 안 검증하는 path 0건.
-- III: GET routes 에서 DB write 없음 (`db.insert|update|delete` grep on GET handler).
-- IV: NetworkSelector 에 default 0건.
-- V: `governance/renderers/index.ts` 가 dynamic registry (switch 또는 lookup) — hardcoded variant 0건 in routes.
-- VI: Tailwind `sm:` / `md:` 클래스 사용. `min-width:` 1024px 같은 desktop-only 0건.
-- VII: `tailwind.config.ts` 의 brand tokens 외 색상 hardcoded 0건.
-- VIII: `analytics|sentry|googletagmanager` import 0건.
+- I/II: `apps/api/src/` 내 `privateKey|mnemonic|secret` literal grep 0건. session JWT 발급 함수는 EIP-712 signature recovery 호출 거치는 코드 경로 강제.
+- III: GET routes 에서 DB write 없음.
+- IV: NetworkSelector 에 default 0건 (build-time `NEXT_PUBLIC_HL_NETWORK` 만).
+- V: `governance/renderers/index.ts` 가 dynamic registry.
+- VI: Tailwind `sm:` / `md:` 클래스 사용. desktop-only 0건.
+- VII: `tailwind.config.ts` 의 brand tokens 외 hex color 0건.
+- VIII: `analytics|sentry|googletagmanager|datadog-rum` import 0건.
 - IX: `aws-cdk-lib|@aws-sdk|aws-lambda` import 0건 in `apps/api/src/`.
+- XI: `/trade-forward` route 의 핸들러는 사용자 action JSON 의 fields 를 mutate 하는 코드 없음 (Object.assign / spread into action object grep). builder 필드는 env 가져온 값으로만 set.
 
 ## Governance
 
-본 헌법은 hl-markets 의 모든 design / code / PR 결정에 우선한다. 위반 시 `plan.md` Complexity Tracking + builnad 명시 승인. **Non-negotiable 표기 원칙 (I, II, V, IX)** 은 예외 없음.
+본 헌법은 hl-markets 의 모든 design / code / PR 결정에 우선한다. 위반 시 `plan.md` Complexity Tracking + builnad 명시 승인. **Non-negotiable 표기 원칙 (I, II, V, IX, XI)** 은 예외 없음.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-24 | **Last Amended**: 2026-05-24
+**Version**: 2.0.0 | **Ratified**: 2026-05-24 | **Last Amended**: 2026-05-27 (Phase J)
