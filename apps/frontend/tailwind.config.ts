@@ -27,6 +27,18 @@ const config: Config = {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
+      boxShadow: {
+        card: '0 1px 0 rgba(255,255,255,0.02) inset, 0 6px 24px -12px rgba(0,0,0,0.5)',
+        'card-hover': '0 1px 0 rgba(151,252,228,0.06) inset, 0 12px 36px -12px rgba(0,0,0,0.6)',
+      },
+      backgroundImage: {
+        'hero-radial':
+          'radial-gradient(140% 90% at 50% 0%, rgba(151,252,228,0.10) 0%, rgba(151,252,228,0) 55%)',
+      },
+      borderRadius: {
+        '2xl': '1rem',
+        '3xl': '1.5rem',
+      },
     },
   },
   plugins: [],

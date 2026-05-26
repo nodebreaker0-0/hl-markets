@@ -1,7 +1,7 @@
 'use client';
 
-// Constitution IV — no default value. Constitution VI — mobile-first (large
-// tap targets, no truncation under 375px).
+// Constitution IV — no default value. Polymarket-style pill segment.
+// Mobile: full width 2-col. Desktop: inline pill.
 
 import clsx from 'clsx';
 
@@ -14,38 +14,33 @@ export interface NetworkTabsProps {
 
 export function NetworkTabs({ value, onChange }: NetworkTabsProps) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="grid grid-cols-2 gap-2 rounded-md border border-hl-border bg-hl-surface p-2 sm:inline-grid sm:w-auto">
-        <button
-          type="button"
-          onClick={() => onChange('testnet')}
-          aria-pressed={value === 'testnet'}
-          className={clsx(
-            'rounded px-4 py-3 text-sm font-medium transition-colors sm:py-2',
-            value === 'testnet'
-              ? 'bg-testnet/20 text-testnet ring-2 ring-testnet'
-              : 'bg-hl-bg text-hl-subtle hover:text-hl-text hover:bg-hl-border',
-          )}
-        >
-          Testnet
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange('mainnet')}
-          aria-pressed={value === 'mainnet'}
-          className={clsx(
-            'rounded px-4 py-3 text-sm font-medium transition-colors sm:py-2',
-            value === 'mainnet'
-              ? 'bg-mainnet/20 text-mainnet ring-2 ring-mainnet'
-              : 'bg-hl-bg text-hl-subtle hover:text-hl-text hover:bg-hl-border',
-          )}
-        >
-          Mainnet
-        </button>
-      </div>
-      {value === null && (
-        <p className="text-xs text-hl-subtle sm:text-right">Choose a network to continue.</p>
-      )}
+    <div className="inline-flex w-full rounded-full bg-hl-surface p-1 ring-1 ring-hl-border sm:w-auto">
+      <button
+        type="button"
+        onClick={() => onChange('testnet')}
+        aria-pressed={value === 'testnet'}
+        className={clsx(
+          'flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5',
+          value === 'testnet'
+            ? 'bg-testnet/20 text-testnet ring-1 ring-testnet'
+            : 'text-hl-subtle hover:text-hl-text',
+        )}
+      >
+        Testnet
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('mainnet')}
+        aria-pressed={value === 'mainnet'}
+        className={clsx(
+          'flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5',
+          value === 'mainnet'
+            ? 'bg-mainnet/20 text-mainnet ring-1 ring-mainnet'
+            : 'text-hl-subtle hover:text-hl-text',
+        )}
+      >
+        Mainnet
+      </button>
     </div>
   );
 }

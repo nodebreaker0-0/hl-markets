@@ -7,10 +7,15 @@ export const metadata: Metadata = {
     'Public explorer for Hyperliquid validatorL1Vote governance — outcome, delisting, future variants. Polymarket-style detail, mobile-first, virtual polls, my delegation lookup. No backend key custody.',
 };
 
-// CSP — Constitution IX (host-agnostic) means backend host is NEXT_PUBLIC_BACKEND_URL.
-// The CSP is built at runtime so the deployed bundle reflects whatever backend the
-// build was pinned to. For mobile/desktop SSR-equivalent (static export), this
-// resolves to the URL inlined at build time.
+// CSP is enforced only on production builds. Next.js dev (`next dev`) ships
+// React-Refresh which uses `eval` for hot-reload — incompatible with a strict
+// `script-src` policy. The production static export does not use eval.
+//
+// Constitution IX — host-agnostic: backend origin is whatever NEXT_PUBLIC_BACKEND_URL
+// resolves to at build time. We inline it into connect-src so the deployed
+// bundle locks itself to that one backend.
+const IS_PROD = process.env.NODE_ENV === 'production';
+
 const BACKEND_ORIGIN = (() => {
   try {
     const url = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
@@ -20,7 +25,7 @@ const BACKEND_ORIGIN = (() => {
   }
 })();
 
-const CSP =
+const CSP_PROD =
   "default-src 'self'; " +
   `connect-src 'self' https://api.hyperliquid.xyz https://api.hyperliquid-testnet.xyz ${BACKEND_ORIGIN}; ` +
   "script-src 'self' 'unsafe-inline'; " +
@@ -34,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <head>
-        <meta httpEquiv="Content-Security-Policy" content={CSP} />
+        {IS_PROD && <meta httpEquiv="Content-Security-Policy" content={CSP_PROD} />}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
       <body className="min-h-screen bg-hl-bg text-hl-text antialiased font-sans">
