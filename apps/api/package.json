@@ -16,11 +16,14 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
+    "@noble/curves": "^1.4.0",
     "@noble/hashes": "^1.4.0",
     "drizzle-orm": "^0.36.4",
     "hono": "^4.6.0",
     "node-cron": "^3.0.3",
     "postgres": "^3.4.4",
+    "ulid": "^2.3.0",
+    "viem": "^2.21.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -16,6 +16,19 @@ const Schema = z.object({
     .string()
     .default('true')
     .transform((s) => s.toLowerCase() === 'true'),
+
+  /** HS256 JWT signing key. ≥ 32 bytes random (e.g. `openssl rand -hex 32`).
+   *  Dev default is short on purpose so a missing prod env is loud, not silent. */
+  SESSION_JWT_SECRET: z
+    .string()
+    .min(16, 'SESSION_JWT_SECRET must be ≥ 16 chars (≥ 32 for prod)')
+    .default('dev-only-not-for-prod-please-rotate-me'),
+
+  /** Set to `true` in prod so the session cookie gets the Secure flag. */
+  COOKIE_SECURE: z
+    .string()
+    .default('false')
+    .transform((s) => s.toLowerCase() === 'true'),
 });
 
 export const env = Schema.parse(process.env);

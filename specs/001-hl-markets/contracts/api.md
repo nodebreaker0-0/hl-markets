@@ -247,7 +247,7 @@ Server-side flow:
 1. Verify nonce was issued by us in the last 5 min and not yet consumed.
 2. `ecrecover(typedDataHash, signature)` must equal `address`.
 3. INSERT `chat_session` row.
-4. Issue HttpOnly cookie `hlm_session=<jwt>` (SameSite=Strict, Secure in prod, Max-Age=86400).
+4. Issue HttpOnly cookie `hlm_session=<jwt>` (SameSite=Lax, Secure in prod, Max-Age=86400). Lax (not Strict) so the SPA's cross-origin fetches carry the cookie.
 5. Return `{ address, expiresAt }`.
 
 Errors: 400 (Zod), 401 (sig fail / nonce reuse / nonce expired), 429.

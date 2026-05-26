@@ -184,7 +184,7 @@
 
 - **FR-100**: System MUST EIP-1193 wallet connect (MetaMask first). 다른 wallet 호환은 phase J.6+ 로 deferred.
 - **FR-101**: System MUST EIP-712 typed-data 1회 sign 으로 sign-in. domain = `{ name: "hl-markets", version: "1", chainId: <wallet active>, verifyingContract: 0x0 }`. message = `{ address, network, nonce, issuedAt }`.
-- **FR-102**: System MUST POST `/auth/sign-in` 받으면 (a) signature recovery → declared address 일치 검증, (b) `nonce` 가 24h 이내 새 nonce 인지 검증, (c) `chat_session` row insert, (d) HttpOnly cookie `hlm_session` 발급 (SameSite=Strict, Secure, Path=/, Max-Age=86400).
+- **FR-102**: System MUST POST `/auth/sign-in` 받으면 (a) signature recovery → declared address 일치 검증, (b) `nonce` 가 24h 이내 새 nonce 인지 검증, (c) `chat_session` row insert, (d) HttpOnly cookie `hlm_session` 발급 (SameSite=Lax, Secure in prod, Path=/, Max-Age=86400). Lax 인 이유: SPA(`:3000`) 와 api(`:3001`) cross-origin fetch 에서 cookie 가 흐르도록.
 - **FR-103**: System MUST POST `/auth/sign-out` — cookie clear + `chat_session.revoked_at = now()`.
 - **FR-104**: System MUST GET `/auth/me` — 현재 session 의 address + expiresAt. cookie 없으면 401.
 

@@ -1,12 +1,13 @@
 'use client';
 
-// Top bar: brand + network badge. The network is build-time
-// (NEXT_PUBLIC_HL_NETWORK) — testnet and mainnet are two separate sites.
-// The badge makes it obvious which one the user is on.
+// Top bar: brand + network badge + Connect/wallet pill.
+// Network is build-time (NEXT_PUBLIC_HL_NETWORK). ConnectButton drives the
+// Phase J.1 sign-in flow.
 
 import Link from 'next/link';
 import clsx from 'clsx';
 import { CURRENT_NETWORK } from '@/lib/network';
+import { ConnectButton } from '@/components/ConnectButton';
 
 export function SiteHeader() {
   return (
@@ -18,21 +19,24 @@ export function SiteHeader() {
             hyperliquid · prediction markets
           </span>
         </Link>
-        <span
-          className={clsx(
-            'rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest ring-1',
-            CURRENT_NETWORK === 'mainnet'
-              ? 'bg-mainnet/15 text-mainnet ring-mainnet/40'
-              : 'bg-testnet/15 text-testnet ring-testnet/40',
-          )}
-          title={
-            CURRENT_NETWORK === 'mainnet'
-              ? 'Production · real HL outcome markets'
-              : 'Dev · HL testnet outcome markets'
-          }
-        >
-          {CURRENT_NETWORK}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={clsx(
+              'rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest ring-1',
+              CURRENT_NETWORK === 'mainnet'
+                ? 'bg-mainnet/15 text-mainnet ring-mainnet/40'
+                : 'bg-testnet/15 text-testnet ring-testnet/40',
+            )}
+            title={
+              CURRENT_NETWORK === 'mainnet'
+                ? 'Production · real HL outcome markets'
+                : 'Dev · HL testnet outcome markets'
+            }
+          >
+            {CURRENT_NETWORK}
+          </span>
+          <ConnectButton />
+        </div>
       </div>
     </header>
   );

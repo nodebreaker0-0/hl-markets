@@ -10,6 +10,7 @@ import { health } from '@/routes/health';
 import { governanceRoutes } from '@/routes/governance';
 import { outcomeRoutes } from '@/routes/outcome';
 import { questionRoutes } from '@/routes/question';
+import { authRoutes } from '@/routes/auth';
 import { runIndexerOnce } from '@/indexer/run';
 import { closeDb } from '@/db/client';
 
@@ -19,8 +20,10 @@ app.use(
   '*',
   cors({
     origin: env.ALLOWED_ORIGINS,
-    allowMethods: ['GET', 'POST'],
+    allowMethods: ['GET', 'POST', 'DELETE'],
     allowHeaders: ['Content-Type'],
+    // Phase J.1: session cookie must flow cross-origin from the SPA.
+    credentials: true,
     maxAge: 600,
   }),
 );
@@ -29,6 +32,7 @@ app.route('/health', health);
 app.route('/governance', governanceRoutes);
 app.route('/outcome', outcomeRoutes);
 app.route('/question', questionRoutes);
+app.route('/auth', authRoutes);
 
 app.notFound((c) => c.json({ error: 'not found' }, 404));
 app.onError((err, c) => {

@@ -1,6 +1,17 @@
 // Drizzle schemas — see specs/001-hl-markets/contracts/data-model.md.
 
-import { bigint, boolean, index, integer, jsonb, numeric, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 
 // ---- governance ---------------------------------------------------------
 
@@ -119,6 +130,32 @@ export const outcomeQuestion = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.network, t.questionId] }),
     statusIdx: index('outcome_question_status_idx').on(t.network, t.status, t.lastSeenAt),
+  }),
+);
+
+// ---- chat_session (Phase J.1) -------------------------------------------
+// EIP-712 sign-in audit + revoke table. JWT (issued as HttpOnly cookie) carries
+// the `id` as `jti`; server checks `revoked_at IS NULL AND expires_at > now()`
+// on every authenticated request.
+
+export const chatSession = pgTable(
+  'chat_session',
+  {
+    /** JWT jti — ULID generated server-side at sign-in. */
+    id: text('id').primaryKey(),
+    /** Lowercase 0x... — recovered from the EIP-712 signature. */
+    address: text('address').notNull(),
+    network: text('network').notNull(),
+    /** One-time nonce issued by /auth/nonce, consumed on sign-in. */
+    nonce: text('nonce').notNull(),
+    issuedAt: bigint('issued_at', { mode: 'bigint' }).notNull(),
+    expiresAt: bigint('expires_at', { mode: 'bigint' }).notNull(),
+    revokedAt: bigint('revoked_at', { mode: 'bigint' }),
+    lastSeenAt: bigint('last_seen_at', { mode: 'bigint' }).notNull(),
+  },
+  (t) => ({
+    nonceUq: uniqueIndex('chat_session_nonce_uq').on(t.nonce),
+    addressIdx: index('chat_session_address_idx').on(t.address, t.expiresAt),
   }),
 );
 
