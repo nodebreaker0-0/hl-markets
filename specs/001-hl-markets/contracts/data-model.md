@@ -185,6 +185,67 @@ WHERE network = $1 AND gov_id = $2
 GROUP BY side;
 ```
 
+## 4.x Phase J — chat tables
+
+### `chat_session`
+
+EIP-712 sign-in 으로 발급한 session 의 audit + revoke 테이블. JWT 는 HttpOnly cookie 로 클라이언트가 들고 있고, server 는 본 row 의 `revoked_at` 만 체크해서 강제 만료.
+
+```ts
+chat_session = pgTable('chat_session', {
+  id          : text('id').primaryKey(),        // JWT jti — random ULID
+  address     : text('address').notNull(),       // lowercase 0x...
+  network     : text('network').notNull(),
+  nonce       : text('nonce').notNull(),         // 1회용. 재사용 시 401.
+  issuedAt    : bigint('issued_at', {mode:'bigint'}).notNull(),
+  expiresAt   : bigint('expires_at', {mode:'bigint'}).notNull(),
+  revokedAt   : bigint('revoked_at', {mode:'bigint'}),
+  lastSeenAt  : bigint('last_seen_at', {mode:'bigint'}).notNull(),
+}, (t) => ({
+  addressIdx: index('chat_session_address_idx').on(t.address, t.expiresAt),
+  nonceUq   : uniqueIndex('chat_session_nonce_uq').on(t.nonce),
+}));
+```
+
+- `nonce` unique → replay 방지.
+- 만료 + revoke 7일 후 cron 삭제 (FR-086).
+
+### `chat_message`
+
+마켓별 chat. `market_key` = `q:<questionId>` 또는 `o:<outcomeId>`.
+
+```ts
+chat_message = pgTable('chat_message', {
+  id         : text('id').primaryKey(),         // ULID — 시간순 정렬 가능
+  network    : text('network').notNull(),
+  marketKey  : text('market_key').notNull(),
+  address    : text('address').notNull(),        // lowercase 0x...
+  body       : text('body').notNull(),
+  signedAt   : bigint('signed_at', {mode:'bigint'}).notNull(),
+  deletedAt  : bigint('deleted_at', {mode:'bigint'}),
+}, (t) => ({
+  roomIdx   : index('chat_message_room_idx').on(t.network, t.marketKey, t.id),
+  addressIdx: index('chat_message_address_idx').on(t.address, t.signedAt),
+}));
+```
+
+조회 패턴: 한 room 의 마지막 N개 = `WHERE network=? AND market_key=? ORDER BY id DESC LIMIT 50`.
+정산 후 24h 유예 → cron hard-delete (FR-114).
+
+### `chat_admin`
+
+Delete 권한 보유 address 의 정적 목록. 현재는 builnad 본인 EOA 1개.
+
+```ts
+chat_admin = pgTable('chat_admin', {
+  address: text('address').primaryKey(),         // lowercase 0x...
+  note   : text('note'),
+  addedAt: bigint('added_at', {mode:'bigint'}).notNull(),
+});
+```
+
+> Seed: 첫 migration 또는 별도 seed script 로 builnad 의 admin 주소 1개 insert.
+
 ## 5. Migrations 정책
 
 - Drizzle migrations → `apps/api/src/db/migrations/`.

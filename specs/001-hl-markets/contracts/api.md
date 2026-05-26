@@ -209,7 +209,173 @@ HTTP status: 400 (Zod fail), 401 (sig fail), 404 (govId 없음), 429 (rate), 500
 - GET 모두 idempotent + cache-friendly (no DB write).
 - POST 만 mutate.
 
-## 5. OpenAPI / shape test
+## 5. Phase J — Wallet + Chat + Position + Trade
+
+> See also: `chat-protocol.md` (WebSocket wire format), `builder-code.md` (trade-forward 의 builder field 제약).
+
+### 5.1 Sign-in / sign-out
+
+#### `POST /auth/sign-in`
+
+Body (Zod):
+```json
+{
+  "address": "0x...",
+  "network": "testnet" | "mainnet",
+  "nonce": "<server-issued — see /auth/nonce below>",
+  "issuedAt": 1779800000000,
+  "signature": "0x<65-byte hex>"
+}
+```
+
+EIP-712 typed data (frontend 가 sign):
+```
+domain = { name: "hl-markets", version: "1", chainId: <wallet active>, verifyingContract: 0x0 }
+primaryType = "SignIn"
+types = {
+  SignIn: [
+    { name: "address",  type: "address" },
+    { name: "network",  type: "string"  },
+    { name: "nonce",    type: "string"  },
+    { name: "issuedAt", type: "uint64"  }
+  ]
+}
+message = { address, network, nonce, issuedAt }
+```
+
+Server-side flow:
+1. Verify nonce was issued by us in the last 5 min and not yet consumed.
+2. `ecrecover(typedDataHash, signature)` must equal `address`.
+3. INSERT `chat_session` row.
+4. Issue HttpOnly cookie `hlm_session=<jwt>` (SameSite=Strict, Secure in prod, Max-Age=86400).
+5. Return `{ address, expiresAt }`.
+
+Errors: 400 (Zod), 401 (sig fail / nonce reuse / nonce expired), 429.
+
+#### `GET /auth/nonce`
+
+```http
+GET /auth/nonce → 200
+{ "nonce": "1779800123-7f3a...", "expiresAt": 1779800423000 }
+```
+
+Server stores in memory (TTL 5 min). One nonce = one sign-in.
+
+#### `POST /auth/sign-out`
+
+Clears cookie + sets `chat_session.revoked_at = now()`. Always 200.
+
+#### `GET /auth/me`
+
+Cookie 있으면 200 `{ address, network, expiresAt }`. 없으면 401.
+
+### 5.2 Chat REST
+
+#### `GET /chat`
+
+| | Type | Required | Default |
+|---|---|---|---|
+| `network` | `'testnet' | 'mainnet'` | yes | — |
+| `marketKey` | `q:<int>` or `o:<int>` | yes | — |
+| `before` | message id | no | newest |
+| `limit` | `1..100` | no | 50 |
+
+Response:
+```json
+{
+  "messages": [
+    {
+      "id": "01HXYZ...",       // ULID
+      "address": "0x...",
+      "body": "I'm long Yes here",
+      "signedAt": 1779800050000,
+      "deleted": false
+    }
+  ],
+  "nextBefore": "01HXYW..."  // or null
+}
+```
+
+Public — no auth required. `deleted=true` messages have `body=""` and `address=""`.
+
+#### `DELETE /chat/:id`
+
+Auth: cookie present + (caller is message author OR caller is in `chat_admin`). Soft-delete (`deleted_at = now()`). Returns 204.
+
+### 5.3 Chat WebSocket
+
+#### `WS /chat/ws?network=&marketKey=`
+
+Upgrade from HTTP. Cookie `hlm_session` carried in upgrade headers.
+
+- Read-only when cookie absent (server still accepts the connection so observers can watch).
+- Frames are JSON, one per line. See `chat-protocol.md` for the wire format (CLIENT_HELLO, SEND, ACK, BROADCAST, DELETE, ERROR, PING, PONG).
+
+Server enforces:
+- (a) JWT verify + address recover from cookie (else read-only).
+- (b) rate limit: 10 SEND per address per market per 60s rolling window.
+- (c) position gate: GET HF `clearinghouseState` for address — that market's notional ≥ $1.
+- (d) automod: URL whitelist, profanity, length ≤ 500.
+- (e) market settled → SEND rejected.
+
+### 5.4 Position
+
+#### `GET /position`
+
+| | Type | Required |
+|---|---|---|
+| `network` | `'testnet' | 'mainnet'` | yes |
+| `address`  | `0x...` | yes |
+| `marketKey` | `q:<int>` or `o:<int>` | yes |
+
+Response:
+```json
+{
+  "side": "yes-long" | "no-long" | "none",
+  "lastFetchedAt": 1779800100000
+}
+```
+
+30s server-side cache per (network, address, marketKey). HF `clearinghouseState` 를 server 가 caller 대신 호출 (CORS / rate 절약).
+
+Public — no auth (HF data is public).
+
+### 5.5 Trade forward (Constitution XI)
+
+#### `POST /trade-forward`
+
+Auth: cookie required.
+
+Body:
+```json
+{
+  "action": { "type": "order", "orders": [...], "grouping": "na", "builder": { "b": "0x...", "f": 50 } },
+  "nonce": 1779800200000,
+  "signature": { "r": "0x...", "s": "0x...", "v": 27 },
+  "vaultAddress": null
+}
+```
+
+Server flow:
+1. Verify cookie → JWT → address.
+2. Verify `action.builder.b` matches env `BUILDER_ADDR_<NETWORK>` (case-insensitive).
+3. Verify `action.builder.f` ≤ env `BUILDER_MAX_FEE_TENTHS_BPS` (default 100 = 0.1%).
+4. **Do not mutate `action`.** Forward `{action, signature, nonce, vaultAddress}` byte-for-byte to HF `/exchange`.
+5. Return HF response verbatim. No mutation of HF payload.
+6. Audit log line: `{ts, address, action.coin?, action.orders?.length, builder.f, hfStatus}`.
+
+Errors:
+- 400 if `action.type !== "order"` or builder mismatch.
+- 401 if no session cookie.
+- 502 if HF /exchange unreachable.
+
+### 5.6 Builder approval helper
+
+#### `POST /builder-approve-forward` (optional sugar)
+
+`approveBuilderFee` action 도 동일 patterns 으로 forward 할 수 있게 별도 endpoint. 사용자가 직접 sign + `/exchange` 호출해도 OK — backend 거치는 건 audit log 편의용.
+
+## 6. OpenAPI / shape test
 
 `make api-shape-test` 가 Zod schema 와 본 contract 의 routes 비교. drift 시 fail.
 
