@@ -1,10 +1,10 @@
-# hl-gov Constitution
+# hl-markets Constitution
 
 ## Core Principles
 
 ### I. Backend Has Zero Key Custody (NON-NEGOTIABLE)
 
-hl-gov 의 백엔드는 사용자 / validator / delegator 의 private key, mnemonic, agent key 를 **절대 받지 않는다**. 가상투표는 client-side EIP-712 sign 후 서버에 signed message + signature 만 보낸다. 서버는 signature 만 검증하고 voter 주소는 recovery 로만 결정. **key 가 서버에 도달하는 path 자체가 존재하지 않는다**.
+hl-markets 의 백엔드는 사용자 / validator / delegator 의 private key, mnemonic, agent key 를 **절대 받지 않는다**. 가상투표는 client-side EIP-712 sign 후 서버에 signed message + signature 만 보낸다. 서버는 signature 만 검증하고 voter 주소는 recovery 로만 결정. **key 가 서버에 도달하는 path 자체가 존재하지 않는다**.
 
 ### II. Signed Messages Over Trust (NON-NEGOTIABLE)
 
@@ -80,6 +80,6 @@ Phase A → B → C → D → E → F → G → H → I 순서. 앞 Phase 의 ex
 
 ## Governance
 
-본 헌법은 hl-gov 의 모든 design / code / PR 결정에 우선한다. 위반 시 `plan.md` Complexity Tracking + builnad 명시 승인. **Non-negotiable 표기 원칙 (I, II, V, IX)** 은 예외 없음.
+본 헌법은 hl-markets 의 모든 design / code / PR 결정에 우선한다. 위반 시 `plan.md` Complexity Tracking + builnad 명시 승인. **Non-negotiable 표기 원칙 (I, II, V, IX)** 은 예외 없음.
 
 **Version**: 1.0.0 | **Ratified**: 2026-05-24 | **Last Amended**: 2026-05-24

@@ -1,0 +1,637 @@
+{
+  "id": "51b0804b-32b6-4591-8209-f1d334da97a2",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.governance": {
+      "name": "governance",
+      "schema": "",
+      "columns": {
+        "network": {
+          "name": "network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gov_id": {
+          "name": "gov_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "variant": {
+          "name": "variant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "inner_key": {
+          "name": "inner_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expire_time": {
+          "name": "expire_time",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "settled_at": {
+          "name": "settled_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "governance_status_idx": {
+          "name": "governance_status_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "expire_time",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "governance_variant_idx": {
+          "name": "governance_variant_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "variant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "governance_first_seen_idx": {
+          "name": "governance_first_seen_idx",
+          "columns": [
+            {
+              "expression": "first_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "governance_network_gov_id_pk": {
+          "name": "governance_network_gov_id_pk",
+          "columns": [
+            "network",
+            "gov_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.outcome_market": {
+      "name": "outcome_market",
+      "schema": "",
+      "columns": {
+        "network": {
+          "name": "network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome_id": {
+          "name": "outcome_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "side_specs": {
+          "name": "side_specs",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quote_token": {
+          "name": "quote_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USDC'"
+        },
+        "deploy_gov_id": {
+          "name": "deploy_gov_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "settle_gov_id": {
+          "name": "settle_gov_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asset_keys": {
+          "name": "asset_keys",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'trading'"
+        },
+        "winner_side": {
+          "name": "winner_side",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "settled_at": {
+          "name": "settled_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "outcome_market_status_idx": {
+          "name": "outcome_market_status_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "outcome_market_deploy_gov_idx": {
+          "name": "outcome_market_deploy_gov_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deploy_gov_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "outcome_market_settle_gov_idx": {
+          "name": "outcome_market_settle_gov_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "settle_gov_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "outcome_market_network_outcome_id_pk": {
+          "name": "outcome_market_network_outcome_id_pk",
+          "columns": [
+            "network",
+            "outcome_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.poll_vote": {
+      "name": "poll_vote",
+      "schema": "",
+      "columns": {
+        "network": {
+          "name": "network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gov_id": {
+          "name": "gov_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "voter_addr": {
+          "name": "voter_addr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "side": {
+          "name": "side",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signature": {
+          "name": "signature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_at": {
+          "name": "signed_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chain_id": {
+          "name": "chain_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recovered_addr": {
+          "name": "recovered_addr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "voter_stake": {
+          "name": "voter_stake",
+          "type": "numeric(40, 0)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "stored_at": {
+          "name": "stored_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "poll_vote_gov_idx": {
+          "name": "poll_vote_gov_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "gov_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "poll_vote_network_gov_id_voter_addr_pk": {
+          "name": "poll_vote_network_gov_id_voter_addr_pk",
+          "columns": [
+            "network",
+            "gov_id",
+            "voter_addr"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.validator_snapshot": {
+      "name": "validator_snapshot",
+      "schema": "",
+      "columns": {
+        "network": {
+          "name": "network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "validator": {
+          "name": "validator",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signer": {
+          "name": "signer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stake": {
+          "name": "stake",
+          "type": "numeric(40, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_jailed": {
+          "name": "is_jailed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commission": {
+          "name": "commission",
+          "type": "numeric(10, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "snapshot_ts": {
+          "name": "snapshot_ts",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "validator_snapshot_latest_idx": {
+          "name": "validator_snapshot_latest_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "validator",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "snapshot_ts",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "validator_snapshot_network_validator_snapshot_ts_pk": {
+          "name": "validator_snapshot_network_validator_snapshot_ts_pk",
+          "columns": [
+            "network",
+            "validator",
+            "snapshot_ts"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.vote_snapshot": {
+      "name": "vote_snapshot",
+      "schema": "",
+      "columns": {
+        "network": {
+          "name": "network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gov_id": {
+          "name": "gov_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot_ts": {
+          "name": "snapshot_ts",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "voters": {
+          "name": "voters",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quorum_reached": {
+          "name": "quorum_reached",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "vote_snapshot_gov_idx": {
+          "name": "vote_snapshot_gov_idx",
+          "columns": [
+            {
+              "expression": "network",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "gov_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "snapshot_ts",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "vote_snapshot_network_gov_id_snapshot_ts_pk": {
+          "name": "vote_snapshot_network_gov_id_snapshot_ts_pk",
+          "columns": [
+            "network",
+            "gov_id",
+            "snapshot_ts"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

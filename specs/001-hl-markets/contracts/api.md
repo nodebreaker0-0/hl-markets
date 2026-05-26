@@ -6,7 +6,7 @@
 ## 0. Base URL
 
 - Mac local dev: `http://localhost:3001`
-- Prod (host 추후): `https://api.hl-gov.bharvest.io` (가설 — host 결정 시 확정)
+- Prod (host 추후): `https://api.hl-markets.bharvest.io` (가설 — host 결정 시 확정)
 
 ## 1. Health
 
@@ -136,7 +136,7 @@ Sign domain (Phase G 의 정확한 spec):
 
 ```ts
 const POLL_DOMAIN = {
-  name: "hl-gov-poll",
+  name: "hl-markets-poll",
   version: "1",
   // chainId = 사용자 wallet active chain (어떤 값이든 OK — server 가 받은 값으로 verify)
   chainId: <number from request>,
@@ -189,7 +189,7 @@ Cache: `Cache-Control: public, max-age=10` (자주 변경, 짧게).
 
 ### CORS
 
-`Access-Control-Allow-Origin: https://hl-gov.bharvest.io` (또는 결정 도메인) + `http://localhost:3000` (dev).
+`Access-Control-Allow-Origin: https://hl-markets.bharvest.io` (또는 결정 도메인) + `http://localhost:3000` (dev).
 Wildcard X.
 
 ### Rate limit

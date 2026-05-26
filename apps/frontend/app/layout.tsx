@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'hl-gov — Hyperliquid governance explorer',
+  title: 'hl-markets — Hyperliquid governance explorer',
   description:
     'Public explorer for Hyperliquid validatorL1Vote governance — outcome, delisting, future variants. Polymarket-style detail, mobile-first, virtual polls, my delegation lookup. No backend key custody.',
 };

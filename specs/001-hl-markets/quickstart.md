@@ -1,4 +1,4 @@
-# Quickstart — hl-gov 검증 시나리오
+# Quickstart — hl-markets 검증 시나리오
 
 > spec.md 의 Success Criteria (SC-001~007) 만족 검증. Phase 별 단계 진행.
 
@@ -11,7 +11,7 @@
 ## QS-0 — Repo 첫 가동
 
 ```bash
-cd /Users/ijeseon/hl-agent/validator/hl-gov
+cd /Users/ijeseon/hl-agent/validator/hl-markets
 make install          # frontend + api workspaces 모두
 make verify           # 모든 게이트 (Phase B 시점엔 lint/typecheck/test/bundle 위주)
 ```
@@ -99,11 +99,11 @@ testnet 에서 pending governance 가 settle/expire 되면 (또는 dev 환경에
 
 ```bash
 cd apps/api
-docker build -t hl-gov-api:dev .
-docker images hl-gov-api    # size < 200MB
+docker build -t hl-markets-api:dev .
+docker images hl-markets-api    # size < 200MB
 docker run --rm -p 3001:3001 \
   -e DATABASE_URL=postgres://hl_gov:dev@host.docker.internal:5432/hl_gov \
-  hl-gov-api:dev
+  hl-markets-api:dev
 ```
 
 기대:

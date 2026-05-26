@@ -1,9 +1,7 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: hl-gov-postgres
+    container_name: hl-markets-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: hl_gov

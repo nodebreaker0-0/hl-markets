@@ -1,52 +1,53 @@
-# Feature Specification: hl-gov (Hyperliquid 거버넌스 public explorer)
+# Feature Specification: hl-markets (Hyperliquid outcome markets public explorer)
 
-**Feature Branch**: `001-hl-gov`
+**Feature Branch**: `001-hl-markets` (renamed from `001-hl-gov` in task #53)
 **Created**: 2026-05-24
-**Status**: Draft
-**Input**: builnad — "hl-vote-web 옆에 별도 SPA, 일반 사용자가 HL 거버넌스를 보고, 가상투표 가능. outcome 거버넌스는 Polymarket-스타일 detail page (perp 가격 차트, side 결과표). HF 가 historical endpoint 안 주니 자체 indexer. 모바일 친화. testnet/mainnet 둘 다. 확장 가능 (다른 variant 추가 쉽게)."
+**Pivoted**: 2026-05-27 (was `hl-gov` — see CHARTER §1 for the pivot note)
+**Status**: Draft v0.3
+**Input**: builnad — "HL 전용 폴리마켓 앱. 진행 중인 outcome 거버넌스 + 현재 trading 마켓 + 정산된 마켓 히스토리. 거버넌스 일반 / delisting / delegations / 가상투표 모두 제외. Polymarket-스타일 multi-option 카드, 옵션별 % chance + 유동성 + 수익 기회 표시. 모바일 친화, testnet/mainnet 둘 다."
 
 ## User Scenarios & Testing
 
-### User Story 1 — 일반 사용자가 현재 pending 거버넌스 본다 (P1, MVP)
+### User Story 1 — Markets 탭에서 현재 trading 중인 outcome 둘러본다 (P1, MVP)
 
-**시나리오**: HL 사용자 (wallet 미연결도 가능) 가 `hl-gov.bharvest.io` 접속 → testnet 또는 mainnet 선택 → 현재 pending 거버넌스 목록 본다. outcome / delisting 별 카드, 통과 기준 (stake %, count %) progress bar, 만료 시간, 누가 voted/not-voted.
+**시나리오**: 사용자가 `hl-markets.bharvest.io` 접속 → testnet 또는 mainnet 선택 → Markets 탭 → 폴리마켓 식 question 카드 (multi-option) + standalone binary 카드 본다. 각 카드에 마켓 이름, 옵션별 % chance, 만료시간.
 
-**Why P1**: 핵심 가치. 거버넌스 가시성 없으면 hl-gov 의 의미 0.
+**Why P1**: 앱의 정체성. 이게 안 보이면 hl-markets 의미 0.
 
-**Independent Test**: localhost 에서 frontend 띄우고 testnet 선택 시, HF `validatorL1Votes` 응답이 카드 리스트로 표시되면 통과.
-
-**Acceptance Scenarios**:
-1. **Given** 사용자가 `/` 진입, **When** network = Testnet 클릭, **Then** 1초 이내 pending governance 카드 리스트 로드.
-2. **Given** 카드 리스트, **When** 카드 클릭, **Then** `/g/<gov_id>` detail 페이지로 이동, variant 별 renderer (outcome / delisting) 표시.
-3. **Given** outcome 카드, **When** progress bar 영역, **Then** stake % (voted stake / total active stake) + count % (voted / active count) 가 시각화 (HL 민트 색).
-4. **Given** mobile viewport (375px), **When** 카드 리스트 / detail, **Then** 한 손 사용 가능 (overflow 없음, terminal-friendly font).
-5. **Given** wallet 미연결, **When** 페이지 진입, **Then** 모든 view 정상 (wallet 강제 X).
-
-### User Story 2 — Delegator 가 내 stake 한 validator 의 vote 상태 본다 (P1)
-
-**시나리오**: HYPE staker 가 wallet 연결 → `delegations(user)` fetch → 내가 stake 한 validator 들의 이름 + 그들이 현재 pending 거버넌스에 어떻게 vote 했는지 표.
-
-**Why P1**: hl-gov 의 두 번째 핵심 가치. delegator → validator 압력 mechanism.
-
-**Independent Test**: 실제 mainnet wallet 연결 → 내 delegation 목록 표시 + 각 validator 의 현재 pending vote 표 cross-ref.
+**Independent Test**: localhost frontend → mainnet → Markets 탭 → 최소 1개 question 카드 (e.g. "May CPI year-over-year") + 옵션 3개의 % chance 가 표시되면 통과.
 
 **Acceptance Scenarios**:
-1. **Given** wallet 연결 + delegation 있음, **When** "My Delegations" 탭, **Then** 내 validator 들 이름 + stake amount + 그들의 현재 pending votes 표.
-2. **Given** validator 가 N 시간 vote 안 함, **When** 표시, **Then** 시각적 강조 (testnet 색 또는 경고 아이콘).
-3. **Given** wallet 미연결, **When** "My Delegations" 클릭, **Then** "Connect wallet" prompt.
+1. **Given** 사용자가 `/` 진입, **When** network = Mainnet + tab = Markets, **Then** 1초 이내 outcomeMeta + allMids 가 fetch 되고 question 카드 + standalone 카드가 보임.
+2. **Given** question 카드 (e.g. CPI), **When** 카드 클릭, **Then** `/q?network=&id=` 진입, 옵션 list + selected option 의 24h chart + orderbook + buy depth/max profit.
+3. **Given** standalone 카드 (e.g. priceBinary), **When** 카드 클릭, **Then** `/o?network=&id=` 진입, side toggle + chart + orderbook.
+4. **Given** mobile viewport (375px), **When** Markets 탭, **Then** 한 손 사용 가능, 카드 1열 grid, overflow 없음.
+5. **Given** wallet 미연결, **When** 모든 탭 / 모든 detail, **Then** 정상 동작 (wallet 강제 X).
 
-### User Story 3 — 사용자가 가상투표 한다 (P2)
+### User Story 2 — Pending 탭에서 새로 deploy 될 outcome 본다 (P1)
 
-**시나리오**: wallet 연결 → 거버넌스 카드 / detail 에서 "Poll vote" 클릭 → side 선택 → EIP-712 sign → POST /poll-vote → 서버 sig 검증 + DB save. 결과 = head count + stake-weighted 양쪽.
+**시나리오**: HL 사용자가 Pending 탭 → 현재 validator pool 에서 vote 진행 중인 outcome 거버넌스 본다. 옵션 / 사이드 이름, 만료시간, voted/not-voted validator, quorum progress.
 
-**Why P2**: 거버넌스 가시성 강화. validator 에게 delegator 의견 신호.
+**Why P1**: "곧 거래 가능해질 마켓" 을 미리 본다. trader 가 launch 시점에 대비할 수 있음.
 
-**Independent Test**: testnet pending 거버넌스 1건에 가상투표 1건 → DB 에 row 1개 → /poll-results 응답에 카운트 +1.
+**Independent Test**: HF `validatorL1Votes` 응답 중 `O` (outcome variant) 액션이 있으면 카드 노출 + `D` (delisting) 는 안 보이면 통과.
 
 **Acceptance Scenarios**:
-1. **Given** wallet 연결 + pending gov, **When** "Poll: Yes" 클릭, **Then** MetaMask EIP-712 popup → confirm → 1초 이내 "voted" 표시.
-2. **Given** 같은 wallet 이 같은 gov 에 다시 vote, **When** "Poll: No" 클릭, **Then** 서버가 reject (duplicate) 또는 update (개정 정책에 따라 spec 결정).
-3. **Given** 가상투표 결과 view, **When** 페이지 reload, **Then** head count 와 stake-weighted % 둘 다 표시. stake-weighted 는 voter 의 `delegated` 합산 비례.
+1. **Given** Pending 탭, **When** 진입, **Then** HF validatorL1Votes 응답 중 variant=outcome 인 것만 카드로 표시.
+2. **Given** 카드, **When** 클릭, **Then** `/g?network=&id=` 진입 — outcome renderer 가 마켓 이름 + 옵션 + 통과 quorum 표시.
+3. **Given** delisting 또는 unknown variant 가 응답에 섞여 있음, **When** Pending 탭, **Then** 그것들은 노출 안 함.
+
+### User Story 3 — Historical 탭에서 정산된 outcome 본다 (P2)
+
+**시나리오**: 사용자가 Historical 탭 → indexer 에 저장된 settled / expired outcome 거버넌스 본다. 정산 시점, 최종 voter 카운트, quorum 도달 여부.
+
+**Why P2**: 마켓 결과 + 과거 거버넌스 진행 패턴 분석. "어떤 outcome 들이 통과했는지" 의 ground truth.
+
+**Independent Test**: backend `/governance?network=&status=historical&variant=outcome` 가 settled/expired row 만 반환, frontend 에서 카드로 표시되면 통과.
+
+**Acceptance Scenarios**:
+1. **Given** Historical 탭, **When** 진입, **Then** backend `/governance?status=historical&variant=outcome` 호출, 응답 row 들이 카드로 표시.
+2. **Given** 빈 응답 (indexer 가 아직 settled mark 안 했음), **When** Historical 탭, **Then** "No historical outcomes yet — indexer marks pending → settled only after expireTime passes" 안내.
+3. **Given** 카드, **When** 클릭, **Then** `/g?network=&id=` 진입, frontend 가 HF live list 에서 못 찾으면 backend detail 로 fallback.
 
 ### User Story 4 — Settled / expired 거버넌스 historical 본다 (P2)
 
@@ -116,11 +117,11 @@
 
 - **FR-040**: System MUST GET `/governance?network=X&status=historical` 응답 — settled/expired 거버넌스 시간순.
 - **FR-041**: System MUST GET `/governance/{network}/{gov_id}` 응답 — 한 거버넌스의 모든 정보 (action, votes timeseries, final status, settled_at).
-- **FR-042**: SPA 가 pending (HF 직접) + historical (hl-gov API) 합쳐서 timeline 표시.
+- **FR-042**: SPA 가 pending (HF 직접) + historical (hl-markets API) 합쳐서 timeline 표시.
 
 #### Phase G — 가상투표 (P2)
 
-- **FR-050**: System MUST EIP-712 typed-data로 가상투표 sign. domain = `{ name: "hl-gov", version: "1", chainId: <wallet active>, verifyingContract: 0x0 }`. message = `{ network, govId, side, signedAt }`.
+- **FR-050**: System MUST EIP-712 typed-data로 가상투표 sign. domain = `{ name: "hl-markets", version: "1", chainId: <wallet active>, verifyingContract: 0x0 }`. message = `{ network, govId, side, signedAt }`.
 - **FR-051**: System MUST POST `/poll-vote` 받으면 sig 검증 (recovery → signer == declared). DB upsert.
 - **FR-052**: System MUST 같은 (network, gov_id, voter_addr) duplicate 차단 또는 update (정책: **update — 사용자 마음 변경 OK**, 단 마지막 vote 만 카운트).
 - **FR-053**: System MUST GET `/poll-results?network=X&gov_id=Y` 응답 — head count + stake-weighted (voter 의 `voter_stake` 합산).
@@ -128,15 +129,25 @@
 
 #### Phase H — Outcome detail Polymarket-style (P3)
 
-- **FR-060**: System MUST outcome detail 에서 등록된 perp 의 현재가 (HF `metaAndAssetCtxs`).
-- **FR-061**: System MUST 24h candlestick chart (HF `candleSnapshot`) — Recharts 또는 lightweight 라이브러리.
-- **FR-062**: System MUST settled outcome 의 최종 winner side + 정산 시각.
+> See `contracts/outcome-market.md` for the full lifecycle + data sources. HIP-4
+> outcome contracts (binary, settle to 0|1) trade on HyperCore's standard
+> orderbook; canonical outcomes (our case) are deployed + settled by validator
+> vote. UI reference: user-provided screenshot of
+> `app.hyperliquid.xyz/trade/btc-above-76877-yes-may-27-0600` (2026-05-24).
+
+- **FR-060**: System MUST `outcomeMeta` polling — indexer 가 `(network, outcome_id) → outcome_market` row 누적. UI 가 deployed outcome 의 name/description/sideSpecs/quote_token 표시.
+- **FR-061**: System MUST `allMids` `#NNNN` mapping — outcome 의 side 별 현재가 (% chance) UI 에 표시. 매핑 알고리즘 = `#` + str(outcome_id*10 + side_idx) 가설, indexer 가 cross-verify.
+- **FR-062**: System MUST `l2Book` `coin=#NNNN` orderbook — Polymarket-style "Price / Size / Total" 표 + Spread row + Yes/No side toggle.
+- **FR-063**: System MUST `candleSnapshot` `coin=#NNNN, interval=1h` — 24h candlestick chart (Recharts 또는 lightweight). 사용자 본 app.hyperliquid.xyz 의 chart 와 동등 정보.
+- **FR-064**: System MUST settled outcome — `winner_side` (sideSpecs index) + 정산 시각 + 최종 가격 표시. trading 종료 표시.
+- **FR-065**: System MUST multi-side outcome (sideSpecs 3+) 지원 — Polymarket "Below X / X-Y / Above Y" 같은 % chance 표 + 각 side 별 orderbook tab.
+- **FR-066**: System MUST 거버넌스 ↔ outcome cross-ref — outcome detail 페이지에서 "deployed by governance #xxx" / "settled by governance #yyy" link (governance detail 페이지로).
 
 #### Phase I — Polish + release host 결정 (P3)
 
 - **FR-070**: System MUST Dockerfile 로 `apps/api` 빌드 가능, 200MB 이하 image.
 - **FR-071**: System MUST 운영 host (builnad 추후 결정) 의 Postgres URL 등 env 한 곳 (.env) 으로 흡수.
-- **FR-072**: System MUST custom domain `hl-gov.bharvest.io` 또는 결정 도메인.
+- **FR-072**: System MUST custom domain `hl-markets.bharvest.io` 또는 결정 도메인.
 
 #### 보안 / 운영 / 통합 요구사항
 

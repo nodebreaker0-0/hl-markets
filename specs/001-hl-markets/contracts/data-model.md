@@ -94,6 +94,61 @@ CREATE INDEX validator_snapshot_latest_idx ON validator_snapshot (network, valid
 
 API `/validators` 는 각 validator 의 latest snapshot row 만 응답 (`DISTINCT ON`).
 
+## 3.5. `outcome_market`
+
+HIP-4 outcome contract — 거버넌스 통과 후 HyperCore 에 등록된 trading market.
+`contracts/outcome-market.md` 의 매핑 규약을 그대로 column 화.
+
+```sql
+CREATE TABLE outcome_market (
+  network         text          NOT NULL,
+  outcome_id      bigint        NOT NULL,                 -- outcomeMeta.outcomes[].outcome
+  name            text          NOT NULL,
+  description     text,
+  side_specs      jsonb         NOT NULL,                 -- [{name:"Yes"}, {name:"No"}]
+  quote_token     text          NOT NULL DEFAULT 'USDC',
+  /** 매핑된 거버넌스 — deploy action 의 (network, gov_id). N:1 가능 (재배포 등) */
+  deploy_gov_id   text,
+  /** 매핑된 settle 거버넌스 — settle action 의 (network, gov_id). NULL = 아직 정산 안 됨 */
+  settle_gov_id   text,
+  /** allMids `#NNNN` keys per side — indexer 가 처음 발견 시 채움 */
+  asset_keys      jsonb         NOT NULL,                 -- ["#1050","#1051"] (sideSpecs 순서)
+  status          text          NOT NULL DEFAULT 'trading', -- 'trading' | 'settled' | 'governance_expired'
+  winner_side     int,                                    -- settle 후 oracle 결과 (sideSpecs 의 index)
+  first_seen_at   bigint        NOT NULL,
+  last_seen_at    bigint        NOT NULL,
+  settled_at      bigint,
+  PRIMARY KEY (network, outcome_id)
+);
+
+CREATE INDEX outcome_market_status_idx     ON outcome_market (network, status, last_seen_at DESC);
+CREATE INDEX outcome_market_deploy_gov_idx ON outcome_market (network, deploy_gov_id);
+CREATE INDEX outcome_market_settle_gov_idx ON outcome_market (network, settle_gov_id);
+```
+
+### 매핑 알고리즘 (indexer)
+
+1. 매분 polling 시점:
+   - `outcomeMeta.outcomes[]` fetch
+   - `allMids` fetch — `#NNNN` keys 만 추출
+   - DB 의 `outcome_market` 와 비교
+2. 새 outcome 발견 시:
+   - `outcomeMeta.outcomes[].outcome` 의 ID + sideSpecs
+   - asset_keys 계산 — `outcome-market.md` §3 의 가설 (`#` + outcomeId*10 + sideIdx). testnet 큰 ID 의 매핑은 indexer 가 cross-verify (allMids `#NNNN` key 중 매핑되지 않은 key 가 있으면 대안 lookup)
+   - 최근 7일 내 quorum-reached governance (variant=outcome, action.O.register*) 와 name/description fuzzy match → `deploy_gov_id` 결정
+3. 정산 감지 시점 (outcome 가 더 이상 거래 안 됨 또는 outcomeMeta 에 `isSettled` flag if exists):
+   - `status = settled`, `winner_side = <int>`, `settled_at = now`
+   - 최근 settle governance 와 매칭 → `settle_gov_id` 채움
+4. 거버넌스 만료 (deploy 거버넌스가 expire 됨) 시:
+   - 새 row 생성 — outcome_id = null 가능 (또는 row 자체 생성 안 함)
+   - 단순화: outcome 으로 등록 안 된 governance 는 `governance` table 의 `status='expired'` 로만 표시. `outcome_market` 에는 들어가지 않음.
+
+### 시계열 가격 (선택)
+
+per-outcome 시계열은 client-side fetch (`candleSnapshot`) 로 충분 → 별도 table 안 만듦. 성능 / cache 필요시 Phase X+ 에 `outcome_price_snapshot` 추가 검토.
+
+---
+
 ## 4. `poll_vote`
 
 가상투표 — wallet sign 결과 보관.

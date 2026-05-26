@@ -1,10 +1,10 @@
 ---
-description: "hl-gov implementation tasks (Phase A~I)"
+description: "hl-markets implementation tasks (Phase A~I)"
 ---
 
-# Tasks: hl-gov
+# Tasks: hl-markets
 
-**Input**: `specs/001-hl-gov/{spec.md, plan.md, contracts/{governance,api,data-model}.md, quickstart.md}` + `CHARTER.md`, `delegation_matrix.md`, `.specify/memory/constitution.md`
+**Input**: `specs/001-hl-markets/{spec.md, plan.md, contracts/{governance,api,data-model}.md, quickstart.md}` + `CHARTER.md`, `delegation_matrix.md`, `.specify/memory/constitution.md`
 
 **Prerequisites**: Phase A 완료 (charter / spec / plan / contracts / quickstart / 본 tasks).
 
@@ -18,7 +18,7 @@ description: "hl-gov implementation tasks (Phase A~I)"
 
 - `[P]` — 다른 파일·의존성 없어 병렬 가능
 - `[Phase-X]` — B/C/D/E/F/G/H/I
-- 모든 경로는 `hl-gov/` 기준
+- 모든 경로는 `hl-markets/` 기준
 
 ---
 
@@ -147,7 +147,7 @@ description: "hl-gov implementation tasks (Phase A~I)"
 - [ ] **T241** [Phase-I] `.github/workflows/ci.yml` — verify gate (frontend + api + migrations).
 - [ ] **T242** [Phase-I] `.github/workflows/release.yml` — tag v* → frontend zip + SHA-256, Docker image push.
 - [ ] **T243** [Phase-I] README — operator quickstart (Mac local), 운영 host 옵션 비교 표 (Railway / Fly / AWS ECS / VPS).
-- [ ] **T244** [Phase-I] custom domain 설정 가이드 — `hl-gov.bharvest.io` Route 53 또는 CloudFlare DNS.
+- [ ] **T244** [Phase-I] custom domain 설정 가이드 — `hl-markets.bharvest.io` Route 53 또는 CloudFlare DNS.
 - [ ] **T245** [Phase-I] 모바일 responsive 풀 검증 — sm/md/lg 모든 페이지 스크린샷 캡쳐.
 - [ ] **T246** [Phase-I] release notes — SHA-256 + 운영 host 결정 (builnad).
 

@@ -25,7 +25,7 @@ typecheck-api:
 test-api:
 	cd apps/api && npm run test -- --run
 build-api-docker:
-	cd apps/api && docker build -t hl-gov-api:dev .
+	cd apps/api && docker build -t hl-markets-api:dev .
 
 # ----- aggregate ----
 lint:       lint-frontend lint-api
@@ -34,15 +34,29 @@ test:       test-frontend test-api
 build:      build-frontend build-api-docker
 
 # ----- Postgres (local) -----
+# Prefer `docker compose` (v2 plugin); fall back to standalone `docker-compose`
+# binary when the plugin isn't registered (common with `brew install docker-compose`).
+DOCKER_COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
+
 db:
-	docker-compose up -d postgres
+	$(DOCKER_COMPOSE) up -d postgres
 db-stop:
-	docker-compose stop postgres
+	$(DOCKER_COMPOSE) stop postgres
 db-reset:
-	docker-compose down -v
-	docker-compose up -d postgres
+	$(DOCKER_COMPOSE) down -v
+	$(DOCKER_COMPOSE) up -d postgres
+
+# ----- Drizzle migrations -----
+db-generate:
+	cd apps/api && npm run db:generate
 db-migrate:
 	cd apps/api && npm run db:migrate
+db-studio:
+	cd apps/api && npm run db:studio
+
+# ----- API dev -----
+api-dev:
+	cd apps/api && npm run dev
 
 # ----- Constitution gate -----
 constitution-gate:
@@ -102,4 +116,4 @@ verify: lint typecheck test build constitution-gate bundle-size
 clean:
 	rm -rf apps/frontend/node_modules apps/frontend/.next apps/frontend/out
 	rm -rf apps/api/node_modules apps/api/dist
-	docker-compose down -v 2>/dev/null || true
+	docker compose down -v 2>/dev/null || true

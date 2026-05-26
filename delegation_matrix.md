@@ -1,4 +1,4 @@
-# hl-gov — Delegation Matrix
+# hl-markets — Delegation Matrix
 
 > **Purpose**: builnad ↔ agent (Claude / hl-agent harness) 간 권한·책임 분배.
 > hl-vote-web 과 달리 **key custody 0** 이므로 슬래시 위험은 없지만, host 비용 / 외부 사용자 데이터 (가상투표 signed messages) 처리는 신중.
@@ -18,7 +18,7 @@
 
 | 영역 | 권한 | 비고 |
 |---|---|---|
-| spec-kit 파일 (`.specify/`, `specs/001-hl-gov/`) | 🟢 auto | drift 시 즉시 갱신 |
+| spec-kit 파일 (`.specify/`, `specs/001-hl-markets/`) | 🟢 auto | drift 시 즉시 갱신 |
 | frontend TypeScript / TSX | 🟢 auto | hl-vote-web 패턴 재사용 |
 | Lambda TypeScript (indexer / api) | 🟢 auto | |
 | CDK TypeScript (infra/) | 🟢 auto | template 생성 검증 (`cdk synth`) |
@@ -104,7 +104,7 @@
 | `npm install` | 🟢 auto | lockfile 갱신 |
 | Sandbox 에서 HF info testnet POST | 🟢 auto | read-only |
 | Sandbox 에서 HF info mainnet POST | 🟢 auto | read-only |
-| sandbox 에서 hl-gov API endpoint (deployed) 호출 | 🟢 auto | 자체 endpoint, read only |
+| sandbox 에서 hl-markets API endpoint (deployed) 호출 | 🟢 auto | 자체 endpoint, read only |
 | 운영 host 의 Console / CLI (Railway / Fly / AWS / VPS) | 📛 forbidden | builnad 의 account, agent 직접 접근 X |
 | 운영 Postgres 에 직접 SQL 실행 | 📛 forbidden | builnad 본인만 |
 

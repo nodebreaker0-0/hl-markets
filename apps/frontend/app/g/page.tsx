@@ -13,8 +13,10 @@ import { VotersList } from '@/components/VotersList';
 import {
   fetchValidatorL1Votes,
   fetchValidatorSummaries,
+  fetchBackendGovernanceDetail,
   type ValidatorL1VotePending,
   type ValidatorSummary,
+  type BackendGovernanceDetail,
 } from '@/lib/api';
 import { classify } from '@/lib/governance/classify';
 import { computeGovId } from '@/lib/governance/govId';
@@ -22,7 +24,7 @@ import { computeQuorum } from '@/lib/governance/thresholds';
 import { buildValidatorIndex, splitVoters } from '@/lib/validators';
 import { renderers } from '@/lib/governance/renderers';
 import type { GovernanceItem } from '@/lib/governance/types';
-import type { Network } from '@/components/NetworkTabs';
+import { CURRENT_NETWORK, type Network } from '@/lib/network';
 
 function pendingToItem(p: ValidatorL1VotePending, network: Network): GovernanceItem {
   const action = { type: 'validatorL1Vote' as const, ...p.action };
@@ -39,6 +41,20 @@ function pendingToItem(p: ValidatorL1VotePending, network: Network): GovernanceI
   };
 }
 
+function backendDetailToItem(d: BackendGovernanceDetail): GovernanceItem {
+  const action = { type: 'validatorL1Vote' as const, ...d.action };
+  return {
+    network: d.network,
+    govId: d.govId,
+    action,
+    variant: d.variant,
+    innerKey: d.innerKey,
+    expireTime: Number(d.expireTime),
+    votes: d.latestVotes,
+    quorumReached: d.latestQuorumReached,
+  };
+}
+
 function fmtExpire(unixMs: number): string {
   const ms = unixMs - Date.now();
   if (ms <= 0) return 'expired';
@@ -51,42 +67,65 @@ function fmtExpire(unixMs: number): string {
 
 function DetailInner() {
   const params = useSearchParams();
-  const network = (params.get('network') as Network | null) ?? null;
+  // Network is build-time. The deprecated `?network=` query param is ignored.
+  const network: Network = CURRENT_NETWORK;
   const id = params.get('id');
 
   const [items, setItems] = useState<GovernanceItem[]>([]);
   const [validators, setValidators] = useState<ValidatorSummary[]>([]);
+  const [backendItem, setBackendItem] = useState<GovernanceItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const load = useCallback(async (n: Network) => {
-    setLoading(true);
-    setErr(null);
-    try {
-      const [votes, summaries] = await Promise.all([
-        fetchValidatorL1Votes(n),
-        fetchValidatorSummaries(n),
-      ]);
-      setItems(votes.map((p) => pendingToItem(p, n)));
-      setValidators(summaries);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Try the HF live list first (cheapest for active governance). If our id
+  // isn't there, fall back to hl-markets-api /governance/:network/:govId so
+  // historical / settled items still render.
+  const load = useCallback(
+    async (n: Network, govId: string) => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const [votes, summaries] = await Promise.all([
+          fetchValidatorL1Votes(n),
+          fetchValidatorSummaries(n),
+        ]);
+        const mapped = votes.map((p) => pendingToItem(p, n));
+        setItems(mapped);
+        setValidators(summaries);
+
+        if (!mapped.some((it) => it.govId === govId)) {
+          try {
+            const detail = await fetchBackendGovernanceDetail(n, govId);
+            setBackendItem(backendDetailToItem(detail));
+          } catch {
+            setBackendItem(null);
+          }
+        } else {
+          setBackendItem(null);
+        }
+      } catch (e) {
+        setErr((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    if (network) void load(network);
-  }, [network, load]);
+    if (id) void load(network, id);
+  }, [network, id, load]);
 
-  const item = useMemo(() => items.find((it) => it.govId === id) ?? null, [items, id]);
+  const item = useMemo(() => {
+    const fromLive = items.find((it) => it.govId === id);
+    return fromLive ?? backendItem ?? null;
+  }, [items, backendItem, id]);
 
-  if (!network || !id) {
+  if (!id) {
     return (
       <Fallback>
         <p className="text-sm text-mainnet">
-          Missing <code className="mono">network</code> or <code className="mono">id</code> in the URL.
+          Missing <code className="mono">id</code> in the URL.
         </p>
       </Fallback>
     );
@@ -100,9 +139,8 @@ function DetailInner() {
   if (!item) {
     return (
       <Fallback>
-        Governance not found on <strong className="text-hl-text">{network}</strong>. It may have
-        settled or expired since you opened the link — Phase F will surface historical entries
-        from the indexer.
+        Governance not found on <strong className="text-hl-text">{network}</strong>. Either it
+        was never observed by the indexer, or the id is malformed.
         <div className="mt-3">
           <Link href="/" className="text-hl-mint hover:underline">
             ← Back to list
@@ -165,26 +203,6 @@ function DetailInner() {
         />
       </section>
 
-      <section className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-4 text-xs text-hl-subtle">
-        <strong className="text-hl-text">Phase G:</strong> sign an EIP-712 virtual poll with
-        your wallet — head + stake-weighted aggregation. Reference-only signal, not the
-        validator vote.
-      </section>
-
-      <section className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-4 text-xs text-hl-subtle">
-        <strong className="text-hl-text">Phase H:</strong> for outcome variants, the registered
-        perp market&apos;s current price + 24h candle chart will land here.
-      </section>
-
-      <details className="text-xs text-hl-subtle">
-        <summary className="cursor-pointer hover:text-hl-mint">Raw action JSON</summary>
-        <pre className="mt-2 overflow-x-auto rounded-xl border border-hl-border bg-hl-bg p-3 text-[11px] leading-snug text-hl-text">
-          {JSON.stringify(item.action, null, 2)}
-        </pre>
-        <p className="mt-1 text-[10px] text-hl-subtle/70">
-          govId: <code className="mono">{item.govId}</code>
-        </p>
-      </details>
     </div>
   );
 }
@@ -205,7 +223,7 @@ function Fallback({ children }: { children: React.ReactNode }) {
 export default function DetailPage() {
   return (
     <>
-      <SiteHeader wallet={null} />
+      <SiteHeader />
       <main>
         <Suspense fallback={<Fallback>Loading…</Fallback>}>
           <DetailInner />

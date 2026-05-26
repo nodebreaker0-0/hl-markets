@@ -1,8 +1,8 @@
 {
-  "name": "@hl-gov/frontend",
+  "name": "@hl-markets/frontend",
   "version": "0.0.1",
   "private": true,
-  "description": "hl-gov frontend — Next.js static SPA, mobile-first, HL brand.",
+  "description": "hl-markets frontend — Next.js static SPA, mobile-first, HL brand.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -1,42 +1,38 @@
 'use client';
 
-// Polymarket-style top bar: logo + nav + (eventually) wallet connect.
-// Mobile-first: logo + condensed nav. Desktop: nav inline.
+// Top bar: brand + network badge. The network is build-time
+// (NEXT_PUBLIC_HL_NETWORK) — testnet and mainnet are two separate sites.
+// The badge makes it obvious which one the user is on.
 
+import Link from 'next/link';
 import clsx from 'clsx';
+import { CURRENT_NETWORK } from '@/lib/network';
 
-export interface SiteHeaderProps {
-  // Phase D 가서 wallet 연결 시 채워짐
-  wallet?: { account: `0x${string}` } | null;
-}
-
-export function SiteHeader({ wallet }: SiteHeaderProps) {
+export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 -mx-3 mb-4 border-b border-hl-border bg-hl-bg/85 px-3 backdrop-blur sm:-mx-4 sm:px-4">
       <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-xl font-bold tracking-tight text-hl-mint">hl-gov</span>
+        <Link href="/" className="flex items-baseline gap-2">
+          <span className="text-xl font-bold tracking-tight text-hl-mint">hl-markets</span>
           <span className="hidden text-[11px] uppercase tracking-widest text-hl-subtle sm:inline">
-            governance · explorer
+            hyperliquid · prediction markets
           </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled
-            title="Phase D will enable wallet connect"
-            className={clsx(
-              'rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-colors',
-              wallet
-                ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint'
-                : 'cursor-not-allowed bg-hl-surface text-hl-subtle ring-hl-border opacity-60',
-            )}
-          >
-            {wallet
-              ? `${wallet.account.slice(0, 6)}…${wallet.account.slice(-4)}`
-              : 'Connect (Phase D)'}
-          </button>
-        </div>
+        </Link>
+        <span
+          className={clsx(
+            'rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest ring-1',
+            CURRENT_NETWORK === 'mainnet'
+              ? 'bg-mainnet/15 text-mainnet ring-mainnet/40'
+              : 'bg-testnet/15 text-testnet ring-testnet/40',
+          )}
+          title={
+            CURRENT_NETWORK === 'mainnet'
+              ? 'Production · real HL outcome markets'
+              : 'Dev · HL testnet outcome markets'
+          }
+        >
+          {CURRENT_NETWORK}
+        </span>
       </div>
     </header>
   );

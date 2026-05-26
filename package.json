@@ -1,5 +1,5 @@
 {
-  "name": "hl-gov",
+  "name": "hl-markets",
   "private": true,
   "version": "0.0.1",
   "description": "Hyperliquid governance public explorer (sibling of hl-vote-web).",
@@ -8,5 +8,9 @@
   ],
   "scripts": {
     "install:all": "npm install --workspaces --ignore-scripts"
+  },
+  "comment-overrides": "Force a single esbuild version across the workspace. Node 24 needs >=0.24 (host/binary version must match); apps/frontend's vitest 2.x and apps/api's tsx 4.x both accept esbuild 0.25+.",
+  "overrides": {
+    "esbuild": "^0.25.0"
   }
 }

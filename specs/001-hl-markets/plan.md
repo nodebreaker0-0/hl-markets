@@ -1,6 +1,6 @@
-# Implementation Plan: hl-gov
+# Implementation Plan: hl-markets
 
-**Branch**: `001-hl-gov` | **Date**: 2026-05-24 | **Spec**: ./spec.md
+**Branch**: `001-hl-markets` | **Date**: 2026-05-24 | **Spec**: ./spec.md
 
 **Input**: ./spec.md (User Stories US1~US5, FR-001..084, SC-001..007)
 
@@ -83,7 +83,7 @@ Phase A (charter/spec-kit) → B (frontend skel) → C (live data) → D (delega
 ### Documentation (this feature)
 
 ```text
-specs/001-hl-gov/
+specs/001-hl-markets/
 ├── spec.md              # WHAT / WHY
 ├── plan.md              # 이 파일 — HOW
 ├── contracts/
@@ -97,7 +97,7 @@ specs/001-hl-gov/
 ### Source Code
 
 ```text
-hl-gov/
+hl-markets/
 ├── CHARTER.md
 ├── delegation_matrix.md
 ├── CLAUDE.md
@@ -108,7 +108,7 @@ hl-gov/
 ├── .specify/
 │   ├── feature.json
 │   └── memory/constitution.md
-├── specs/001-hl-gov/...
+├── specs/001-hl-markets/...
 ├── apps/
 │   ├── frontend/                   # Next.js
 │   │   ├── package.json
@@ -137,7 +137,7 @@ hl-gov/
 │   │   │       ├── OutcomeDetail.tsx
 │   │   │       └── PriceChart.tsx          # Phase H
 │   │   ├── lib/
-│   │   │   ├── api.ts                      # HF + hl-gov backend wrappers
+│   │   │   ├── api.ts                      # HF + hl-markets backend wrappers
 │   │   │   ├── validators.ts               # 복사: hl-vote-web/lib/validators.ts
 │   │   │   ├── env.ts
 │   │   │   ├── wallet/

@@ -1,4 +1,4 @@
-# hl-gov — Agent Context
+# hl-markets — Agent Context
 
 > 이 폴더는 **Hyperliquid 거버넌스 public explorer** (Polymarket-스타일 UX, 가상투표, delegation lookup, mobile-first).
 > hl-vote-web 의 **sibling 프로젝트**. Constitution / Charter 다름 — backend 있음 (host-agnostic), key custody 없음.
@@ -6,7 +6,7 @@
 ## Spec-Kit Layout
 
 ```
-hl-gov/
+hl-markets/
 ├── CLAUDE.md                              # 본 파일
 ├── CHARTER.md                             # why / non-goals / threat / phases / layout
 ├── delegation_matrix.md                   # builnad ↔ agent 권한
@@ -16,7 +16,7 @@ hl-gov/
 ├── .specify/
 │   ├── feature.json
 │   └── memory/constitution.md             # 10 원칙
-└── specs/001-hl-gov/
+└── specs/001-hl-markets/
     ├── spec.md                            # WHAT/WHY
     ├── plan.md                            # HOW
     ├── contracts/
@@ -28,7 +28,7 @@ hl-gov/
 ```
 
 <!-- SPECKIT START -->
-**Active plan**: `specs/001-hl-gov/plan.md`
+**Active plan**: `specs/001-hl-markets/plan.md`
 <!-- SPECKIT END -->
 
 ## 어디서부터 읽는가
@@ -45,7 +45,7 @@ hl-gov/
 
 ## 사용자 결정 (2026-05-24)
 
-1. ✅ 이름 `hl-gov`, 경로 `validator/hl-gov/`, 도메인 `hl-gov.bharvest.io`.
+1. ✅ 이름 `hl-markets`, 경로 `validator/hl-markets/`, 도메인 `hl-markets.bharvest.io`.
 2. ✅ Backend = AWS specific 아닌 **host-agnostic** (Hono + Postgres + Docker). 운영 host 는 builnad 추후.
 3. ✅ Frontend = Next.js static export (hl-vote-web 패턴), Polymarket UX layout 차용, **HL brand 톤** (다크/민트).
 4. ✅ Phase A→I, MVP = B~E (frontend + 로컬 backend).

@@ -153,20 +153,29 @@ HF `validatorL1Votes` 응답은 `id` 안 줌. 우리가 안정 id 필요 (DB PK 
 
 ### 5.1 Outcome
 
-데이터 source:
-- `action.O.registerTokensAndStandaloneOutcome.nameAndDescription[0]` = 제목.
-- `action.O.registerTokensAndStandaloneOutcome.nameAndDescription[1]` = 본문 설명.
-- `action.O.registerTokensAndStandaloneOutcome.sideNames` = [side1, side2] (예: ["Yes", "No"]).
-- `action.O.settle` = 정산 액션 (별도 govId).
+거버넌스 통과 후 **HIP-4 outcome contract** 로 등록 → HyperCore 의 standard orderbook 에서 trading. 자세한 lifecycle / data sources / Polymarket-style UI 매핑은 **`contracts/outcome-market.md`** 참조.
 
-UI:
-- 큰 제목 (제목).
-- 본문 설명 (collapsible, long).
-- side1 / side2 카드 (HL 톤 다크) — Phase H 에서 perp 가격 + 차트.
-- QuorumBar (stake + count).
-- 가상투표 패널 (Phase G).
-- voted/not-voted (이름).
-- 만료.
+데이터 source (거버넌스 action 단계):
+- 두 가지 known inner op:
+  - `action.O.registerTokensAndStandaloneOutcome` — `nameAndDescription: [title, desc]`, `sideNames: [s1, s2, ...]`
+  - `action.O.registerTokensAndQuestion` — `name`, `description`, `sideNames`
+- `action.O.settle` 또는 비슷한 변형 — 정산 액션 (별도 govId, 같은 outcome 에 대해 deployment 와 settlement 두 단계)
+- 새 inner op 가 등장하면 outcome renderer 의 `extractOutcome` 보강 + 본 절에 한 줄 추가
+
+거버넌스 통과 후 (deploy 거버넌스 quorum 달성):
+- `outcomeMeta.outcomes[]` 에 새 entry 추가 — `outcome` 정수 ID + 등장한 `name`/`description`/`sideSpecs`
+- 우리 indexer 가 `(name, description)` heuristic + 시간 매칭으로 `gov_id ↔ outcome_id` 연결
+- `outcome_market` row 생성 — Phase E
+
+UI (거버넌스 + outcome market 통합):
+- 큰 제목 + variant badge (Outcome mint)
+- 본문 설명 (collapsible)
+- side 카드 — Phase B/C 는 sideName 만, Phase F+ 는 deployed 후 trading 가격 + % chance
+- QuorumBar (stake + count)
+- 가상투표 패널 (Phase G)
+- voted/not-voted (이름)
+- 만료
+- (Phase H) 등록된 outcome 의 Order Book + 24h candle + side 별 % chance — `outcome-market.md` §5
 
 ### 5.2 Delisting
 
