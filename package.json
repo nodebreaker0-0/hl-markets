@@ -1,0 +1,12 @@
+{
+  "name": "hl-gov",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Hyperliquid governance public explorer (sibling of hl-vote-web).",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "install:all": "npm install --workspaces --ignore-scripts"
+  }
+}

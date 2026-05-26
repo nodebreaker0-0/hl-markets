@@ -1,0 +1,21 @@
+node_modules/
+**/node_modules/
+**/.next/
+**/out/
+**/dist/
+**/coverage/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+.vscode/
+.idea/
+*.tsbuildinfo
+
+# local Postgres
+postgres-data/
+*.sql.dump
+
+# Drizzle generated migrations are committed; meta cache files are not
+**/drizzle/meta/_journal.json

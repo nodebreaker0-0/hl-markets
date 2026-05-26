@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --hl-bg: #0f1a1f;
+  --hl-mint: #97fce4;
+}
+
+html,
+body {
+  background-color: var(--hl-bg);
+  /* Avoid iOS rubber-band background flash + prevent horizontal overflow on small screens. */
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Subtle scroll bar, dark theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #142026;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e2c33;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2a3a42;
+}
+
+/* Tap highlight on touch devices: subtle mint, not the default ugly blue */
+* {
+  -webkit-tap-highlight-color: rgba(151, 252, 228, 0.12);
+}
