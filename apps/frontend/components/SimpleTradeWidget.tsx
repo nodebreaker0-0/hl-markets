@@ -20,6 +20,9 @@ import { EnableTradingModal } from '@/components/EnableTradingModal';
 import { CURRENT_NETWORK } from '@/lib/network';
 import { assetIdFromKey } from '@/lib/asset-id';
 import { loadAgent } from '@/lib/agent';
+import { pushToast } from '@/lib/toast';
+import { fetchHolding } from '@/lib/portfolio';
+import Link from 'next/link';
 
 interface Props {
   /** "#NNNN" asset key. */
@@ -50,6 +53,7 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
   const [book, setBook] = useState<OrderBook | null>(null);
   const [bookErr, setBookErr] = useState<string | null>(null);
   const [bookLoading, setBookLoading] = useState(true);
+  const [holding, setHolding] = useState<{ shares: number; entryNtl: number } | null>(null);
   const [usdInput, setUsdInput] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<unknown>(null);
@@ -116,6 +120,32 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
       cancelled = true;
     };
   }, [session]);
+
+  // Poll user's holding on this specific asset every 10s so the chip refreshes
+  // after a successful Bet without a manual page reload.
+  useEffect(() => {
+    if (!session) {
+      setHolding(null);
+      return;
+    }
+    let cancelled = false;
+    let timer: number | undefined;
+    const tick = async (): Promise<void> => {
+      try {
+        const h = await fetchHolding(session.address, assetKey);
+        if (!cancelled) setHolding(h);
+      } catch {
+        /* network blip — keep last value */
+      } finally {
+        if (!cancelled) timer = window.setTimeout(() => void tick(), 10_000);
+      }
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [session, assetKey]);
 
   // Post-onboarding auto-resume. When the modal completes, hasAgent and
   // approved flip to true; if resumeBetRef.current is set we re-invoke
@@ -216,8 +246,27 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
         bestBidPx: bidPx ?? 0,
       });
       setResult(r);
+      // Surface fill / partial / reject as a toast.
+      const status = extractFillStatus(r);
+      if (status.kind === 'filled') {
+        pushToast({
+          tone: 'success',
+          message: `Bet on ${label} filled`,
+          detail: `${status.sz} shares @ ${status.px} · OID ${status.oid}`,
+        });
+      } else if (status.kind === 'resting') {
+        pushToast({
+          tone: 'info',
+          message: `Order resting on ${label}`,
+          detail: `OID ${status.oid}`,
+        });
+      } else if (status.kind === 'error') {
+        pushToast({ tone: 'error', message: 'HL rejected order', detail: status.error });
+      }
     } catch (e) {
-      setErr((e as Error).message);
+      const msg = (e as Error).message;
+      setErr(msg);
+      pushToast({ tone: 'error', message: 'Bet failed', detail: msg });
     } finally {
       setBusy(false);
     }
@@ -250,6 +299,21 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Your holding chip (J.8 polish) */}
+        {holding && (
+          <Link
+            href="/portfolio"
+            className="mb-2 block rounded-lg border border-hl-mint/40 bg-hl-mint/10 px-2.5 py-1.5 text-[11px] text-hl-text hover:bg-hl-mint/15"
+          >
+            <span className="text-hl-subtle">You hold</span>{' '}
+            <strong className="text-hl-mint">{holding.shares} shares</strong>
+            {bidPx !== null && (
+              <span className="text-hl-subtle"> · now ${(holding.shares * bidPx).toFixed(2)}</span>
+            )}
+            <span className="float-right text-hl-mint">Portfolio →</span>
+          </Link>
+        )}
 
         {/* Amount input + Max */}
         <div className="space-y-2">
@@ -348,7 +412,9 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
           </button>
 
           <div className="text-center text-[10px] text-hl-subtle">
-            Builder fee: {builder.feeBpsHuman} bps · IOC market at best ask + 2% slippage cap
+            Outcome buys are <strong>fee 0</strong> on HL · IOC market at best ask + 2% slip
+            <br />
+            Cash out later collects HL{"'"}s {builder.feeBpsHuman} bps fee on the USDC you receive.
           </div>
         </div>
       </section>
@@ -370,6 +436,43 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
       />
     </>
   );
+}
+
+/** Parse HF /exchange response to a shape suitable for the toast layer. */
+interface HfStatusEntry {
+  filled?: { totalSz?: string; avgPx?: string; oid?: number };
+  resting?: { oid?: number };
+  error?: string;
+}
+interface HfResponse {
+  status?: 'ok' | 'err';
+  response?: { type?: string; data?: { statuses?: HfStatusEntry[] } };
+}
+type FillStatus =
+  | { kind: 'filled'; sz: string; px: string; oid: number }
+  | { kind: 'resting'; oid: number }
+  | { kind: 'error'; error: string }
+  | { kind: 'unknown' };
+
+function extractFillStatus(r: unknown): FillStatus {
+  const obj = r as HfResponse;
+  const entry = obj?.response?.data?.statuses?.[0];
+  if (!entry) return { kind: 'unknown' };
+  if (entry.filled) {
+    return {
+      kind: 'filled',
+      sz: entry.filled.totalSz ?? '',
+      px: entry.filled.avgPx ?? '',
+      oid: entry.filled.oid ?? 0,
+    };
+  }
+  if (entry.resting) {
+    return { kind: 'resting', oid: entry.resting.oid ?? 0 };
+  }
+  if (entry.error) {
+    return { kind: 'error', error: entry.error };
+  }
+  return { kind: 'unknown' };
 }
 
 function Banner({

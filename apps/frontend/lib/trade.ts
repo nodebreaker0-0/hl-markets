@@ -110,7 +110,7 @@ export interface SignAndSendArgs {
  */
 async function submitForward(args: {
   address: `0x${string}`;
-  action: OrderAction | ApproveBuilderFeeAction;
+  action: OrderAction | ApproveBuilderFeeAction | CancelAction;
 }): Promise<unknown> {
   const nonce = BigInt(Date.now());
   const agent = await loadAgent(args.address, CURRENT_NETWORK);
@@ -276,6 +276,93 @@ export async function placeMarketBuy(args: PlaceMarketBuyArgs): Promise<unknown>
       b: builder.address.toLowerCase() as `0x${string}`,
       f: builder.feeTenthsBps,
     },
+  };
+  return submitForward({ address: args.address, action });
+}
+
+/** Phase J.8 — Cash out (market sell at top of book).
+ *
+ *  Inputs:
+ *   - shares: integer share count to sell.
+ *   - bestBidPx: best bid (price the IOC sell will hit).
+ *   - bestBidSz: bid size cap so we don't request more than fillable.
+ *   - slippagePct: lower bound of acceptable sell price (= bestBid × (1 - slip/100)).
+ *
+ *  Logic:
+ *   1. capped = min(shares, floor(bestBidSz))
+ *   2. limit = bestBid × (1 - slip/100), clamped ≥ 0.001
+ *   3. IOC sell at that limit, builder field attached for parity.
+ */
+export interface PlaceMarketSellArgs extends SignAndSendArgs {
+  assetId: number;
+  shares: number;
+  bestBidPx: number;
+  bestBidSz: number;
+  slippagePct?: number;
+}
+
+export async function placeMarketSell(args: PlaceMarketSellArgs): Promise<unknown> {
+  const builder = getBuilderConfig();
+  if (!builder.configured) {
+    throw new Error('Builder not configured for this network.');
+  }
+  if (args.bestBidPx <= 0 || args.bestBidSz <= 0) {
+    throw new Error('No buyers right now — try again in a moment.');
+  }
+
+  const maxShares = Math.floor(args.bestBidSz);
+  let contracts = Math.min(Math.floor(args.shares), maxShares);
+  if (contracts <= 0) {
+    throw new Error('Not enough liquidity to cash out (book too thin).');
+  }
+
+  // Bid-notional check (mirrors HF $10 floor).
+  if (contracts * args.bestBidPx < 10) {
+    throw new Error(
+      `Sell would be below HL's $10 minimum notional (${contracts} × $${args.bestBidPx} = $${(contracts * args.bestBidPx).toFixed(2)}).`,
+    );
+  }
+
+  const slip = args.slippagePct ?? 2;
+  const limit = Math.max(args.bestBidPx * (1 - slip / 100), 0.001);
+
+  const action: OrderAction = {
+    type: 'order',
+    orders: [
+      {
+        a: args.assetId,
+        b: false, // sell
+        p: toWire(limit),
+        s: toWire(contracts),
+        r: false,
+        t: { limit: { tif: 'Ioc' } },
+      },
+    ],
+    grouping: 'na',
+    builder: {
+      b: builder.address.toLowerCase() as `0x${string}`,
+      f: builder.feeTenthsBps,
+    },
+  };
+  return submitForward({ address: args.address, action });
+}
+
+// ---- Cancel order ------------------------------------------------------
+
+export interface CancelAction {
+  type: 'cancel';
+  cancels: { a: number; o: number }[];
+}
+
+/** Phase J.8 — cancel a resting order. Agent-signed when possible. */
+export async function cancelOrder(args: {
+  address: `0x${string}`;
+  assetId: number;
+  oid: number;
+}): Promise<unknown> {
+  const action: CancelAction = {
+    type: 'cancel',
+    cancels: [{ a: args.assetId, o: args.oid }],
   };
   return submitForward({ address: args.address, action });
 }

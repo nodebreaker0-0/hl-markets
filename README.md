@@ -131,6 +131,38 @@ NEXT_PUBLIC_API_BASE=https://api.hl-markets.bharvest.io \
 
 `NEXT_PUBLIC_HL_NETWORK` is read at build time by `lib/network.ts`; the choice is baked into the SPA bundle, so there is no in-app network switcher.
 
+### Mainnet build
+
+> 자세한 운영 절차는 [`specs/001-hl-markets/contracts/mainnet-rollout.md`](specs/001-hl-markets/contracts/mainnet-rollout.md) 참조.
+> 운영자(builnad) 1인이 손으로 돌리는 step-by-step + monitoring + incident playbook 포함.
+
+Mainnet build 한 줄 예 — env inline + npm run build:
+
+```bash
+cd apps/frontend && rm -rf .next out && \
+NEXT_PUBLIC_HL_NETWORK=mainnet \
+NEXT_PUBLIC_API_BASE=https://api.hl-markets.bharvest.io \
+NEXT_PUBLIC_BUILDER_ADDR_MAINNET=0xMAINNET_BUILDER \
+NEXT_PUBLIC_BUILDER_ADDR_TESTNET=0xTESTNET_BUILDER \
+NEXT_PUBLIC_BUILDER_FEE_BPS=5 \
+NEXT_PUBLIC_BUILDER_MAX_FEE_PCT_STR=0.01% \
+  npm run build
+```
+
+Backend (prod Docker run) 의 핵심 env: `NODE_ENV=production`, `COOKIE_SECURE=true`,
+`ALLOWED_ORIGINS=https://hl-markets.bharvest.io`, prod `DATABASE_URL`, 회전된 `SESSION_JWT_SECRET`.
+전체 list 는 mainnet-rollout.md §3.1.
+
+**Safety checklist** (배포 직전 손으로 tick — 자세한 건 mainnet-rollout.md Appendix B):
+
+1. Builder mainnet EOA 의 perp account value ≥ 100 USDC (`clearinghouseState` 로 확인).
+2. testnet builder EOA 가 mainnet 빌드에 박히지 않았다 — `grep -r 0xTESTNET_BUILDER out/_next/static/chunks/` 결과 비어 있음.
+3. backend `NODE_ENV=production` + `COOKIE_SECURE=true` + `ALLOWED_ORIGINS` 가 정확한 prod origin 만.
+4. CSP `connect-src` 가 mainnet HF (`api.hyperliquid.xyz`) 만 — testnet HF host 빠짐.
+5. CloudFront geo restriction (US 등) ON + disclaimer modal 노출.
+
+사고 시 회복: mainnet-rollout.md §7 (incident) / §8 (rollback to testnet).
+
 ### Backend — single Docker image
 
 ```bash

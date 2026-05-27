@@ -57,6 +57,13 @@ const ActionSchema = z.discriminatedUnion('type', [
       agentName: z.string(),
     })
     .passthrough(),
+  // Phase J.8 — cancel a resting order. No builder field.
+  z
+    .object({
+      type: z.literal('cancel'),
+      cancels: z.array(z.object({ a: z.number().int(), o: z.number().int() })),
+    })
+    .passthrough(),
 ]);
 
 const Body = z.object({
@@ -106,7 +113,13 @@ tradeRoutes.post('/', async (c) => {
   }
 
   const expectedBuilder = builderAddrFor(network);
-  if (expectedBuilder === '0x0000000000000000000000000000000000000000') {
+  // Builder-config check is only required for actions that reference the
+  // builder (order, approveBuilderFee). cancel + approveAgent flow through
+  // without builder dependence so we don't gate them on env presence.
+  if (
+    (action.type === 'order' || action.type === 'approveBuilderFee') &&
+    expectedBuilder === '0x0000000000000000000000000000000000000000'
+  ) {
     return c.json(
       { error: 'builder not configured for this network — set BUILDER_ADDR_*' },
       503,

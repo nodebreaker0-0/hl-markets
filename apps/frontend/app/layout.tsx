@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Toaster } from '@/components/Toaster';
 
 export const metadata: Metadata = {
   title: 'hl-markets — Hyperliquid governance explorer',
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-hl-bg text-hl-text antialiased font-sans">
         <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">{children}</div>
+        <Toaster />
       </body>
     </html>
   );
