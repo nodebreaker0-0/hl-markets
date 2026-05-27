@@ -48,6 +48,15 @@ const ActionSchema = z.discriminatedUnion('type', [
       maxFeeRate: z.string(),
     })
     .passthrough(),
+  // Phase J.7 — approveAgent registers an ephemeral EOA so the user doesn't
+  // need a wallet popup for every trade. No builder field on this one.
+  z
+    .object({
+      type: z.literal('approveAgent'),
+      agentAddress: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+      agentName: z.string(),
+    })
+    .passthrough(),
 ]);
 
 const Body = z.object({
@@ -68,9 +77,15 @@ tradeRoutes.post('/', async (c) => {
   const sess = await requireSession(c.req.header('cookie') ?? undefined);
   if (!sess) return c.json({ error: 'no session' }, 401);
 
+  // Read RAW request bytes — never let Zod (or any parser) rewrite the action
+  // body. HF re-msgpacks the action JSON to compute the recovery hash, and any
+  // field-order change between what the frontend signed and what we forward
+  // produces a different hash → wrong recovered signer → "User does not exist".
+  // Constitution XI: byte-for-byte forward.
+  const rawText = await c.req.text();
   let raw: unknown;
   try {
-    raw = await c.req.json();
+    raw = JSON.parse(rawText);
   } catch {
     return c.json({ error: 'bad json' }, 400);
   }
@@ -79,6 +94,11 @@ tradeRoutes.post('/', async (c) => {
     return c.json({ error: 'bad body', details: parsed.error.flatten() }, 400);
   }
   const { network, action, nonce, signature, vaultAddress } = parsed.data;
+  // `parsed.data.action` is Zod-reordered (Constitution XI hazard). We use it
+  // ONLY for validation. The actual `action` forwarded to HF comes from the
+  // raw JSON below.
+  const rawObj = raw as { action: unknown };
+  const rawAction = rawObj.action;
 
   // The session network and the action network must agree.
   if (sess.network !== network) {
@@ -101,10 +121,12 @@ tradeRoutes.post('/', async (c) => {
     if (action.builder.b.toLowerCase() !== expectedBuilder) {
       return c.json({ error: 'builder address mismatch' }, 400);
     }
-    if (action.builder.f > env.BUILDER_MAX_FEE_TENTHS_BPS) {
+    // env is human bps; HL action's `f` is tenths-of-bps. Multiply once.
+    const maxTenths = env.BUILDER_MAX_FEE_BPS * 10;
+    if (action.builder.f > maxTenths) {
       return c.json(
         {
-          error: `builder fee too high (max ${env.BUILDER_MAX_FEE_TENTHS_BPS} tenths-bps)`,
+          error: `builder fee too high (max ${env.BUILDER_MAX_FEE_BPS} bps = ${maxTenths} tenths-bps, got ${action.builder.f})`,
         },
         400,
       );
@@ -115,11 +137,12 @@ tradeRoutes.post('/', async (c) => {
     }
   }
 
-  // Forward to HF /exchange byte-for-byte. We pass `action` through without
-  // touching any field; only the envelope keys (nonce, signature, vaultAddress)
-  // are repacked the way HF expects.
+  // Forward to HF /exchange byte-for-byte. Use the RAW action object (preserves
+  // the frontend's signed key order). Envelope keys (nonce, signature,
+  // vaultAddress) come from the validated `parsed.data` — those are not part
+  // of the signed action_hash, so re-stringifying them is safe.
   const body = JSON.stringify({
-    action,
+    action: rawAction,
     nonce,
     signature,
     vaultAddress: vaultAddress ?? null,

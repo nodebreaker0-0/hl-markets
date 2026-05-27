@@ -1,6 +1,10 @@
 // Single source of truth for runtime env vars. Zod-validated at startup so a
 // misconfig surfaces immediately rather than at the first DB connection.
+//
+// dotenv/config loads .env from the current working directory before Zod
+// sees process.env. tsx watch does NOT do this automatically.
 
+import 'dotenv/config';
 import { z } from 'zod';
 
 const Schema = z.object({
@@ -41,9 +45,11 @@ const Schema = z.object({
     .string()
     .regex(/^0x[0-9a-fA-F]{40}$/, 'BUILDER_ADDR_MAINNET must be 0x + 40 hex')
     .default('0x0000000000000000000000000000000000000000'),
-  /** Max builder fee tenths-of-bps we will accept. HL hard caps at 100 (perp)
-   *  / 1000 (spot). 50 = 5 bps = 0.05% which is our default. */
-  BUILDER_MAX_FEE_TENTHS_BPS: z.coerce.number().int().min(0).max(1000).default(50),
+  /** Max builder fee in human bps (basis points) we will accept.
+   *  HL hard caps at 10 bps (0.1%) for perp / 100 bps (1%) for spot.
+   *  5 = 5 bps = 0.05% which is our default. Backend multiplies by 10
+   *  internally to compare against the HL action's `f` (tenths-of-bps). */
+  BUILDER_MAX_FEE_BPS: z.coerce.number().int().min(0).max(100).default(5),
 });
 
 export const env = Schema.parse(process.env);

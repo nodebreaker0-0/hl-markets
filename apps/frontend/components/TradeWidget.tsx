@@ -1,16 +1,16 @@
 'use client';
 
-// Phase J.5 — in-app trade widget for one outcome side.
+// Phase J.5 + J.6 — in-app trade widget.
 //
-// State machine:
-//   - wallet not connected → "Connect to trade" banner
-//   - builder not configured (env zero addr)     → "Builder not configured" banner
-//   - builder configured + no approval           → ApproveBuilderModal trigger
-//   - builder configured + approved              → order form (side / size / price / tif)
+// Two modes:
+//   - Simple (default, Polymarket-style) → SimpleTradeWidget (Bet/Cash out,
+//     market IOC at top of book + slippage). For most users.
+//   - Advanced (toggle, persisted) → this file's Buy/Sell/Price/TIF form for
+//     limit orders. Same Builder Code flow, just exposes the trading
+//     primitives.
 //
-// HL action `order` requires a numeric `a` (asset id). For outcome markets
-// the mapping from `#NNNN` → asset id is currently a TODO (Phase J.5b R&D),
-// so the form ships with an explicit input for now.
+// Mode preference is stored in localStorage so a user who flips Advanced
+// stays there across reloads.
 
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
@@ -19,6 +19,8 @@ import { getBuilderConfig } from '@/lib/builder';
 import { placeOrder, fetchMaxBuilderFee, parsePctToTenthsBps } from '@/lib/trade';
 import { ApproveBuilderModal } from '@/components/ApproveBuilderModal';
 import { CURRENT_NETWORK } from '@/lib/network';
+import { assetIdFromKey } from '@/lib/asset-id';
+import { SimpleTradeWidget } from '@/components/SimpleTradeWidget';
 
 interface TradeWidgetProps {
   /** "#NNNN" asset key the user is currently looking at. */
@@ -27,9 +29,74 @@ interface TradeWidgetProps {
   sideName: string;
   /** Current mid price ([0, 1]) — used as the default price. */
   midPrice: number | null;
+  /** Optional human outcome label (e.g. "Algeria") for Simple CTA copy. */
+  outcomeLabel?: string;
 }
 
-export function TradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps) {
+type Mode = 'simple' | 'advanced';
+const MODE_KEY = 'hl-markets:tradeMode';
+
+function readStoredMode(): Mode {
+  if (typeof window === 'undefined') return 'simple';
+  const v = window.localStorage.getItem(MODE_KEY);
+  return v === 'advanced' ? 'advanced' : 'simple';
+}
+
+export function TradeWidget(props: TradeWidgetProps) {
+  const [mode, setMode] = useState<Mode>('simple');
+  // Hydrate from localStorage after mount — avoids SSR hydration mismatch.
+  useEffect(() => {
+    setMode(readStoredMode());
+  }, []);
+  const flip = (m: Mode): void => {
+    setMode(m);
+    if (typeof window !== 'undefined') window.localStorage.setItem(MODE_KEY, m);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-end">
+        <div className="inline-flex rounded-full border border-hl-border bg-hl-bg p-0.5 text-[10px] uppercase tracking-widest">
+          <button
+            type="button"
+            onClick={() => flip('simple')}
+            className={clsx(
+              'rounded-full px-3 py-1 transition',
+              mode === 'simple'
+                ? 'bg-hl-mint/15 text-hl-mint'
+                : 'text-hl-subtle hover:text-hl-text',
+            )}
+          >
+            Simple
+          </button>
+          <button
+            type="button"
+            onClick={() => flip('advanced')}
+            className={clsx(
+              'rounded-full px-3 py-1 transition',
+              mode === 'advanced'
+                ? 'bg-hl-mint/15 text-hl-mint'
+                : 'text-hl-subtle hover:text-hl-text',
+            )}
+          >
+            Advanced
+          </button>
+        </div>
+      </div>
+      {mode === 'simple' ? (
+        <SimpleTradeWidget
+          assetKey={props.assetKey}
+          sideName={props.sideName}
+          outcomeLabel={props.outcomeLabel}
+        />
+      ) : (
+        <AdvancedTradeWidget {...props} />
+      )}
+    </div>
+  );
+}
+
+function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps) {
   const { session } = useSession();
   const builder = getBuilderConfig();
   const [approved, setApproved] = useState<boolean | null>(null);
@@ -37,7 +104,6 @@ export function TradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps) 
 
   // Form state
   const [isBuy, setIsBuy] = useState(true);
-  const [assetIdStr, setAssetIdStr] = useState('');
   const [size, setSize] = useState('');
   const [price, setPrice] = useState(midPrice !== null ? midPrice.toFixed(3) : '');
   const [tif, setTif] = useState<'Ioc' | 'Gtc'>('Gtc');
@@ -102,8 +168,7 @@ export function TradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps) 
         setApproved(true);
       }
 
-      const assetId = Number(assetIdStr.trim());
-      if (!Number.isFinite(assetId)) throw new Error('asset id must be an integer');
+      const assetId = assetIdFromKey(assetKey);
       if (!size.trim() || Number(size) <= 0) throw new Error('size must be positive');
       if (!price.trim() || Number(price) < 0 || Number(price) > 1) {
         throw new Error('price must be between 0 and 1');
@@ -134,7 +199,9 @@ export function TradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps) 
         </div>
 
         <div className="space-y-3 text-sm">
-          {/* Side toggle */}
+          {/* Side toggle — Bet (open) / Cash out (close existing position).
+              We keep the underlying isBuy=true/false semantics so the order
+              action stays bog-standard for HF; only labels change. */}
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -146,7 +213,7 @@ export function TradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps) 
                   : 'bg-hl-bg text-hl-subtle ring-hl-border',
               )}
             >
-              Buy
+              Bet
             </button>
             <button
               type="button"
@@ -158,23 +225,9 @@ export function TradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps) 
                   : 'bg-hl-bg text-hl-subtle ring-hl-border',
               )}
             >
-              Sell
+              Cash out
             </button>
           </div>
-
-          {/* Asset id (Phase J.5b will resolve this automatically from assetKey). */}
-          <Field
-            label="asset id"
-            hint="HL universe index for this side. Phase J.5b will auto-resolve."
-          >
-            <input
-              value={assetIdStr}
-              onChange={(e) => setAssetIdStr(e.target.value)}
-              placeholder="e.g. 1010"
-              inputMode="numeric"
-              className="w-full rounded-lg border border-hl-border bg-hl-bg px-2 py-1.5 font-mono text-sm text-hl-text focus:border-hl-mint focus:outline-none"
-            />
-          </Field>
 
           <div className="grid grid-cols-2 gap-2">
             <Field label="size">
@@ -243,7 +296,7 @@ export function TradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps) 
               busy && 'cursor-wait opacity-60',
             )}
           >
-            {busy ? 'Signing…' : isBuy ? `Buy ${sideName}` : `Sell ${sideName}`}
+            {busy ? 'Signing…' : isBuy ? `Bet on ${sideName}` : `Cash out ${sideName}`}
           </button>
         </div>
       </section>

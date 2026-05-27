@@ -316,13 +316,15 @@ export function startChatWs(server: HttpServer): void {
     void handleOpen(ws, meta);
 
     ws.on('message', async (raw: RawData) => {
-      if (raw.length > MAX_LEN + 1024) {
+      // RawData is Buffer | ArrayBuffer | Buffer[]; stringify once and bound on string size.
+      const text = raw.toString();
+      if (text.length > MAX_LEN + 1024) {
         send(ws, { type: 'ERROR', code: 'bad_frame', message: 'frame too large' });
         return;
       }
       let frame: InFrame;
       try {
-        frame = JSON.parse(raw.toString()) as InFrame;
+        frame = JSON.parse(text) as InFrame;
       } catch {
         send(ws, { type: 'ERROR', code: 'bad_frame' });
         return;

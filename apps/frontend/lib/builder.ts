@@ -8,15 +8,37 @@
 //   NEXT_PUBLIC_BUILDER_ADDR_TESTNET
 //   NEXT_PUBLIC_BUILDER_ADDR_MAINNET
 //   NEXT_PUBLIC_BUILDER_FEE_BPS         (human bps, e.g. 5 = 0.05%)
-//   NEXT_PUBLIC_BUILDER_MAX_FEE_PCT_STR (approveBuilderFee maxFeeRate, default "0.01%")
+//
+// The approveBuilderFee `maxFeeRate` string is derived from BUILDER_FEE_BPS
+// instead of being a separate env — keeping them linked prevents the user
+// from approving (say) "0.01%" while we ship orders with f=50 (= 0.05%) and
+// getting silent HF rejections ("Builder fee has not been approved").
 
 import { CURRENT_NETWORK } from './network';
 
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
 
-function readEnv(key: string, fallback = ''): string {
-  if (typeof process === 'undefined') return fallback;
-  return (process.env[key] as string | undefined) ?? fallback;
+// IMPORTANT: NEXT_PUBLIC_* env access MUST use literal `process.env.NAME`
+// — Next.js / webpack's DefinePlugin only inlines string-literal accesses.
+// `process.env[someVar]` returns undefined at runtime in the browser bundle.
+
+const ADDR_TESTNET = process.env.NEXT_PUBLIC_BUILDER_ADDR_TESTNET ?? '';
+const ADDR_MAINNET = process.env.NEXT_PUBLIC_BUILDER_ADDR_MAINNET ?? '';
+const FEE_BPS_RAW = process.env.NEXT_PUBLIC_BUILDER_FEE_BPS ?? '5';
+
+/** Convert human bps → maxFeeRate string (e.g. 5 bps → "0.05%").
+ *  HL accepts strings like "0.05%", "0.1%", normalized similarly to wire prices.
+ */
+function bpsToPctString(bps: number): string {
+  // bps → percent value:  bps / 100  (5 bps = 0.05%)
+  // Use a high-precision round-trip and strip trailing zeros for parity with
+  // how Python SDK formats the value.
+  let s = (bps / 100).toFixed(6);
+  if (s.includes('.')) {
+    s = s.replace(/0+$/, '');
+    if (s.endsWith('.')) s = s.slice(0, -1);
+  }
+  return `${s}%`;
 }
 
 export interface BuilderConfig {
@@ -33,23 +55,18 @@ export interface BuilderConfig {
 }
 
 export function getBuilderConfig(): BuilderConfig {
-  const addrRaw =
-    CURRENT_NETWORK === 'mainnet'
-      ? readEnv('NEXT_PUBLIC_BUILDER_ADDR_MAINNET')
-      : readEnv('NEXT_PUBLIC_BUILDER_ADDR_TESTNET');
+  const addrRaw = CURRENT_NETWORK === 'mainnet' ? ADDR_MAINNET : ADDR_TESTNET;
   const address = (addrRaw || ZERO_ADDR).toLowerCase() as `0x${string}`;
 
-  const bpsRaw = readEnv('NEXT_PUBLIC_BUILDER_FEE_BPS', '5');
-  const feeBpsHuman = Math.max(0, Math.floor(Number(bpsRaw) || 0));
+  const feeBpsHuman = Math.max(0, Math.floor(Number(FEE_BPS_RAW) || 0));
   const feeTenthsBps = feeBpsHuman * 10;
-
-  const maxFeeRatePct = readEnv('NEXT_PUBLIC_BUILDER_MAX_FEE_PCT_STR', '0.01%');
 
   return {
     address,
     feeTenthsBps,
     feeBpsHuman,
-    maxFeeRatePct,
+    // Tie maxFeeRate to feeBpsHuman so approve cap ≥ actual order fee always.
+    maxFeeRatePct: bpsToPctString(feeBpsHuman),
     configured: address !== ZERO_ADDR && feeTenthsBps > 0,
   };
 }

@@ -376,6 +376,7 @@ function QuestionInner() {
           assetKey={activeAssetKey}
           sideName={`${activeOption.name} · Yes`}
           midPrice={activeOption.yesPct}
+          outcomeLabel={activeOption.name}
         />
       )}
 

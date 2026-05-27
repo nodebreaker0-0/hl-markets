@@ -329,6 +329,7 @@ function OutcomeInner() {
         assetKey={currentAssetKey}
         sideName={currentSideName}
         midPrice={currentSidePct}
+        outcomeLabel={meta.name}
       />
 
       <ChatPanel marketKey={`o:${meta.outcomeId}`} marketTitle={meta.name} />

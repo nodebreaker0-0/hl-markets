@@ -13,6 +13,10 @@ import {
 } from '@/lib/wallet/metamask';
 import { CURRENT_NETWORK, type Network } from '@/lib/network';
 import { getBuilderConfig } from '@/lib/builder';
+import { signApproveBuilderFee } from '@/lib/signing/user-signed';
+import { toWire } from '@/lib/wire';
+import { loadAgent, deleteAgent } from '@/lib/agent';
+import { signL1ActionWithAgent } from '@/lib/signing/agent-sign';
 
 const API_BASE: string =
   (typeof process !== 'undefined' &&
@@ -95,13 +99,24 @@ export interface SignAndSendArgs {
 }
 
 /** Submit an HL L1 action via /trade-forward. Returns whatever HF returns
- *  (status passes through, body is JSON or error text). */
+ *  (status passes through, body is JSON or error text).
+ *
+ *  Phase J.7: If an agent EOA exists in IndexedDB for (address, network),
+ *  the action is signed locally by the agent privkey — no MetaMask popup.
+ *  Otherwise we fall back to the main-wallet path (which prompts the user).
+ *  The caller (TradeWidget / SimpleTradeWidget) is responsible for running
+ *  the onboarding flow that creates an agent before reaching this fn for
+ *  the popup-free experience.
+ */
 async function submitForward(args: {
   address: `0x${string}`;
   action: OrderAction | ApproveBuilderFeeAction;
 }): Promise<unknown> {
   const nonce = BigInt(Date.now());
-  const sig = await signL1Action(args.address, args.action, nonce, CURRENT_NETWORK);
+  const agent = await loadAgent(args.address, CURRENT_NETWORK);
+  const sig = agent
+    ? await signL1ActionWithAgent(agent.privKey, args.action, nonce, CURRENT_NETWORK)
+    : await signL1Action(args.address, args.action, nonce, CURRENT_NETWORK);
 
   const res = await fetch(`${API_BASE}/trade-forward`, {
     method: 'POST',
@@ -129,7 +144,29 @@ async function submitForward(args: {
       body: parsed,
     });
   }
+  // J.7: If HF rejected with an agent-related error, the local agent record
+  // is stale (user revoked from another browser, or registered a different
+  // agent). Clear it so the next attempt re-onboards through the modal.
+  if (agent && looksLikeAgentRejection(parsed)) {
+    try {
+      await deleteAgent(args.address, CURRENT_NETWORK);
+    } catch (_) {
+      /* best effort */
+    }
+  }
   return parsed;
+}
+
+/** Heuristic: HF returns 200 with `{"status":"ok","response":{...,"error":"Agent does not exist..."}}`
+ *  for revoked agents. Look for explicit "agent" wording to avoid wiping on
+ *  unrelated errors. */
+function looksLikeAgentRejection(parsed: unknown): boolean {
+  try {
+    const s = JSON.stringify(parsed).toLowerCase();
+    return s.includes('agent does not exist') || s.includes('agent not found') || s.includes('invalid agent');
+  } catch {
+    return false;
+  }
 }
 
 // ---- Order --------------------------------------------------------------
@@ -143,42 +180,183 @@ export interface PlaceOrderArgs extends SignAndSendArgs {
   tif: 'Ioc' | 'Gtc' | 'Alo';
 }
 
+/** Phase J.6 — Simple Mode market buy.
+ *
+ *  Inputs:
+ *   - usdAmount: dollars the user is willing to bet.
+ *   - bestAskPx / bestAskSz: top-of-book from a fresh L2 fetch.
+ *   - slippagePct (default 2): bumps the IOC limit above best ask so the
+ *     order still fills if the book ticked up between fetch and submit.
+ *
+ *  Logic:
+ *   1. cap usdAmount at maxUsdAtTopOfBook = bestAskPx × bestAskSz
+ *   2. contracts = cappedUsd / bestAskPx
+ *   3. limit = bestAskPx × (1 + slippage/100), clamped to [bestAskPx, 1]
+ *   4. IOC limit at that price, with builder field attached
+ *
+ *  Returns HF response — caller handles fill vs partial vs reject.
+ */
+export interface PlaceMarketBuyArgs extends SignAndSendArgs {
+  assetId: number;
+  usdAmount: number;
+  bestAskPx: number;
+  bestAskSz: number;
+  /** Phase J.6 hotfix #2 — HF's per-order minimum-notional check uses the
+   *  best BID, not the ask. In wide-spread outcome markets we MUST bump up
+   *  the contract size so `contracts × bestBidPx ≥ MIN_USD`, otherwise HF
+   *  returns "Order must have minimum value of 10 USDC" even when the user
+   *  is paying $20+ at the ask. */
+  bestBidPx: number;
+  /** Percent (e.g. 2 = +2%). Default 2. */
+  slippagePct?: number;
+}
+
+/** HF minimum-notional threshold (also mirrored in SimpleTradeWidget). */
+const HL_MIN_NOTIONAL_USD = 10;
+/** Tiny safety buffer above the HL threshold to absorb book ticks. */
+const NOTIONAL_BUFFER = 1.05;
+
+export async function placeMarketBuy(args: PlaceMarketBuyArgs): Promise<unknown> {
+  const builder = getBuilderConfig();
+  if (!builder.configured) {
+    throw new Error('Builder not configured for this network.');
+  }
+  if (args.bestAskPx <= 0 || args.bestAskSz <= 0) {
+    throw new Error('No sellers right now — try again in a moment.');
+  }
+  if (args.bestBidPx <= 0) {
+    // Pathological: no bid at all. HF would reject for the same reason; surface
+    // it client-side so we don't waste a signature.
+    throw new Error('No buyers in this market yet — HL min order ($10) cannot be met.');
+  }
+
+  // Required contracts to clear HF's bid-based notional check.
+  const minContractsForNotional = Math.ceil(
+    (HL_MIN_NOTIONAL_USD * NOTIONAL_BUFFER) / args.bestBidPx,
+  );
+
+  // Contracts the user's USD budget can afford at the ask.
+  const askMaxContracts = Math.floor(args.bestAskSz);
+  const contractsFromUsd = Math.ceil(args.usdAmount / args.bestAskPx);
+
+  // Final contract size = whichever is bigger between user budget and the HF
+  // notional floor, capped at top-of-book ask size.
+  let contracts = Math.max(contractsFromUsd, minContractsForNotional);
+  if (contracts > askMaxContracts) contracts = askMaxContracts;
+
+  if (contracts <= 0) {
+    throw new Error('Not enough liquidity for an integer contract.');
+  }
+  if (contracts * args.bestBidPx < HL_MIN_NOTIONAL_USD) {
+    throw new Error(
+      `Liquidity too thin: even buying the entire ask (${askMaxContracts} contracts ≈ ` +
+        `$${(askMaxContracts * args.bestAskPx).toFixed(2)}) is below HL's $${HL_MIN_NOTIONAL_USD} ` +
+        `bid-notional floor (bid $${args.bestBidPx}).`,
+    );
+  }
+
+  const slip = args.slippagePct ?? 2;
+  // Outcome prices live in (0, 1). Don't bid above 1 — HF rejects.
+  const limit = Math.min(args.bestAskPx * (1 + slip / 100), 0.999);
+
+  const action: OrderAction = {
+    type: 'order',
+    orders: [
+      {
+        a: args.assetId,
+        b: true,
+        p: toWire(limit),
+        s: toWire(contracts),
+        r: false,
+        t: { limit: { tif: 'Ioc' } },
+      },
+    ],
+    grouping: 'na',
+    builder: {
+      b: builder.address.toLowerCase() as `0x${string}`,
+      f: builder.feeTenthsBps,
+    },
+  };
+  return submitForward({ address: args.address, action });
+}
+
 export async function placeOrder(args: PlaceOrderArgs): Promise<unknown> {
   const builder = getBuilderConfig();
   if (!builder.configured) {
     throw new Error('Builder not configured for this network.');
   }
+  // CRITICAL (Phase J.5b): `p` and `s` MUST be in wire format. HF re-normalizes
+  // unnormalized strings before computing the recovery hash, so signing
+  // "0.400" produces a signature that recovers to a random address. See
+  // lib/wire.ts.
   const action: OrderAction = {
     type: 'order',
     orders: [
       {
         a: args.assetId,
         b: args.isBuy,
-        p: args.price,
-        s: args.size,
+        p: toWire(args.price),
+        s: toWire(args.size),
         r: false,
         t: { limit: { tif: args.tif } },
       },
     ],
     grouping: 'na',
-    builder: { b: builder.address, f: builder.feeTenthsBps },
+    // Builder address MUST be lowercased — HF normalizes it before recovery,
+    // and Python SDK does `builder.lower()` for the same reason.
+    builder: {
+      b: builder.address.toLowerCase() as `0x${string}`,
+      f: builder.feeTenthsBps,
+    },
   };
   return submitForward({ address: args.address, action });
 }
 
-// ---- Approve builder fee ------------------------------------------------
+// ---- Approve builder fee (user-signed action — NOT L1) ------------------
+//
+// approveBuilderFee uses HL's user-signed spec (HyperliquidTransaction:
+// ApproveBuilderFee typed data + action body with hyperliquidChain +
+// signatureChainId). signApproveBuilderFee handles the EIP-712 sign; we
+// then POST through /trade-forward with the fully-built action body. */
 
 export async function approveBuilderFee(args: SignAndSendArgs): Promise<unknown> {
   const builder = getBuilderConfig();
   if (!builder.configured) {
     throw new Error('Builder not configured for this network.');
   }
-  const action: ApproveBuilderFeeAction = {
-    type: 'approveBuilderFee',
+  const { action, signature, nonce } = await signApproveBuilderFee({
+    address: args.address,
+    network: CURRENT_NETWORK,
     maxFeeRate: builder.maxFeeRatePct,
     builder: builder.address,
-  };
-  return submitForward({ address: args.address, action });
+  });
+
+  const res = await fetch(`${API_BASE}/trade-forward`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      network: CURRENT_NETWORK,
+      action,
+      nonce: Number(nonce),
+      signature,
+      vaultAddress: null,
+    }),
+  });
+  const text = await res.text();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = { raw: text };
+  }
+  if (!res.ok) {
+    throw Object.assign(new Error(`trade-forward ${res.status}`), {
+      status: res.status,
+      body: parsed,
+    });
+  }
+  return parsed;
 }
 
 // ---- HF info: current max approval --------------------------------------
