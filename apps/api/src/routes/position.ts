@@ -19,5 +19,11 @@ positionRoutes.get('/', async (c) => {
   const { network, address, marketKey } = parsed.data;
   const snap = await getPosition(network, address.toLowerCase(), marketKey);
   c.header('Cache-Control', 'public, max-age=15');
-  return c.json({ side: snap.side, lastFetchedAt: snap.lastFetchedAt });
+  return c.json({
+    side: snap.side,
+    shares: snap.shares,
+    notional: snap.notional,
+    holdings: snap.holdings,
+    lastFetchedAt: snap.lastFetchedAt,
+  });
 });

@@ -433,8 +433,23 @@ export async function deleteChatMessage(id: string): Promise<void> {
   }
 }
 
+export interface PositionHolding {
+  outcomeId: number;
+  outcomeName: string;
+  sideIdx: number;
+  sideName: string;
+  shares: number;
+  notional: number;
+}
+
 export interface PositionResponse {
   side: 'yes-long' | 'no-long' | 'none';
+  /** Total outcome shares held across all matching assets. */
+  shares: number;
+  /** USD value (mark-to-bid). */
+  notional: number;
+  /** Per-outcome breakdown, ordered by notional desc. */
+  holdings: PositionHolding[];
   lastFetchedAt: number;
 }
 

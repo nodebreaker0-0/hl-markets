@@ -24,6 +24,10 @@ export interface OrderBook {
   bestBid: BookLevel | null;
   /** Lowest ask (top of book) or null if empty. */
   bestAsk: BookLevel | null;
+  /** Full ask side (multi-level walks need this). */
+  asks: BookLevel[];
+  /** Full bid side. */
+  bids: BookLevel[];
   /** Server time when book was generated. */
   time: number;
 }
@@ -42,12 +46,14 @@ export async function fetchOrderBook(assetKey: string): Promise<OrderBook> {
     throw new Error(`l2Book HTTP ${res.status}`);
   }
   const raw = (await res.json()) as RawBook;
-  const [bids, asks] = raw.levels;
-  const topBid = bids[0];
-  const topAsk = asks[0];
+  const [rawBids, rawAsks] = raw.levels;
+  const bids: BookLevel[] = (rawBids ?? []).map((l) => ({ px: Number(l.px), sz: Number(l.sz) }));
+  const asks: BookLevel[] = (rawAsks ?? []).map((l) => ({ px: Number(l.px), sz: Number(l.sz) }));
   return {
-    bestBid: topBid ? { px: Number(topBid.px), sz: Number(topBid.sz) } : null,
-    bestAsk: topAsk ? { px: Number(topAsk.px), sz: Number(topAsk.sz) } : null,
+    bestBid: bids[0] ?? null,
+    bestAsk: asks[0] ?? null,
+    asks,
+    bids,
     time: raw.time,
   };
 }
@@ -74,4 +80,66 @@ export function maxUsdAtTopOfBook(book: OrderBook): number {
  *  submit. 2% is generous for outcome markets where prices live in [0, 1]. */
 export function iocLimitPrice(bestAsk: number, slippagePct = 2): number {
   return bestAsk * (1 + slippagePct / 100);
+}
+
+/** Walk the ask side until either `targetUsd` USD or the limit price is met.
+ *  Returns the integer-rounded total contracts to request and the
+ *  worst-fill price that should be the IOC limit (= last touched level ×
+ *  (1+slippage)).
+ *
+ *  The slippagePct lets the order chase up to `lastLevel × (1+slip)` so a
+ *  small book tick during submission doesn't strand the tail. */
+export interface WalkResult {
+  /** Integer contracts to submit. */
+  contracts: number;
+  /** Spend in USDC at the walked levels (estimate, pre-fill). */
+  spendUsd: number;
+  /** Weighted average price across the levels we will touch. */
+  avgPx: number;
+  /** Last level price we'd consume. Drives the IOC limit. */
+  worstPx: number;
+  /** How many levels we'd touch (informational). */
+  levelsTouched: number;
+}
+
+export function walkAsks(
+  asks: BookLevel[],
+  targetUsd: number,
+  slippagePct = 2,
+): WalkResult | null {
+  if (asks.length === 0 || targetUsd <= 0) return null;
+  let remainingUsd = targetUsd;
+  let contracts = 0;
+  let spend = 0;
+  let lastPx = asks[0]!.px;
+  let levelsTouched = 0;
+
+  for (const lvl of asks) {
+    const lvlMaxUsd = lvl.px * lvl.sz;
+    const takeUsd = Math.min(remainingUsd, lvlMaxUsd);
+    const takeContracts = takeUsd / lvl.px;
+    contracts += takeContracts;
+    spend += takeContracts * lvl.px;
+    lastPx = lvl.px;
+    levelsTouched += 1;
+    remainingUsd -= takeUsd;
+    if (remainingUsd <= 0.0001) break;
+  }
+
+  if (contracts <= 0) return null;
+
+  // Outcome markets require integer size (szDecimals=0). Round UP so the
+  // notional we ask HL to fill is ≥ what the user wanted. The IOC limit
+  // gets slippage bumped from the last touched level so the rounded-up
+  // share also fits comfortably under the cap.
+  const intContracts = Math.ceil(contracts);
+  const avgPx = spend / contracts;
+
+  return {
+    contracts: intContracts,
+    spendUsd: intContracts * avgPx,
+    avgPx,
+    worstPx: lastPx,
+    levelsTouched,
+  };
 }

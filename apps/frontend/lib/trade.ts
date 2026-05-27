@@ -17,6 +17,7 @@ import { signApproveBuilderFee } from '@/lib/signing/user-signed';
 import { toWire } from '@/lib/wire';
 import { loadAgent, deleteAgent } from '@/lib/agent';
 import { signL1ActionWithAgent } from '@/lib/signing/agent-sign';
+import { walkAsks } from '@/lib/orderbook';
 
 const API_BASE: string =
   (typeof process !== 'undefined' &&
@@ -201,6 +202,10 @@ export interface PlaceMarketBuyArgs extends SignAndSendArgs {
   usdAmount: number;
   bestAskPx: number;
   bestAskSz: number;
+  /** Optional — when provided, placeMarketBuy walks across multiple ask
+   *  levels (Phase J.10 polish). When omitted, falls back to the top-of-book
+   *  only behavior. */
+  asks?: { px: number; sz: number }[];
   /** Phase J.6 hotfix #2 — HF's per-order minimum-notional check uses the
    *  best BID, not the ask. In wide-spread outcome markets we MUST bump up
    *  the contract size so `contracts × bestBidPx ≥ MIN_USD`, otherwise HF
@@ -230,34 +235,43 @@ export async function placeMarketBuy(args: PlaceMarketBuyArgs): Promise<unknown>
     throw new Error('No buyers in this market yet — HL min order ($10) cannot be met.');
   }
 
+  const slip = args.slippagePct ?? 2;
+
   // Required contracts to clear HF's bid-based notional check.
   const minContractsForNotional = Math.ceil(
     (HL_MIN_NOTIONAL_USD * NOTIONAL_BUFFER) / args.bestBidPx,
   );
 
-  // Contracts the user's USD budget can afford at the ask.
-  const askMaxContracts = Math.floor(args.bestAskSz);
-  const contractsFromUsd = Math.ceil(args.usdAmount / args.bestAskPx);
+  let contracts: number;
+  let limit: number;
 
-  // Final contract size = whichever is bigger between user budget and the HF
-  // notional floor, capped at top-of-book ask size.
-  let contracts = Math.max(contractsFromUsd, minContractsForNotional);
-  if (contracts > askMaxContracts) contracts = askMaxContracts;
-
-  if (contracts <= 0) {
-    throw new Error('Not enough liquidity for an integer contract.');
+  if (args.asks && args.asks.length > 0) {
+    // Phase J.10 — walk multiple ask levels so a single bet can spend
+    // deeper than the top-of-book on its own.
+    const walk = walkAsks(args.asks, args.usdAmount, slip);
+    if (!walk) throw new Error('No ask liquidity available.');
+    contracts = Math.max(walk.contracts, minContractsForNotional);
+    // The IOC limit is the WORST price we'd touch, bumped by slippage. This
+    // lets the tail of a large basket fill at level-2/3 prices.
+    limit = Math.min(walk.worstPx * (1 + slip / 100), 0.999);
+  } else {
+    // Single-level fallback (callers that don't pass `asks`).
+    const askMaxContracts = Math.floor(args.bestAskSz);
+    const contractsFromUsd = Math.ceil(args.usdAmount / args.bestAskPx);
+    contracts = Math.max(contractsFromUsd, minContractsForNotional);
+    if (contracts > askMaxContracts) contracts = askMaxContracts;
+    if (contracts <= 0) {
+      throw new Error('Not enough liquidity for an integer contract.');
+    }
+    if (contracts * args.bestBidPx < HL_MIN_NOTIONAL_USD) {
+      throw new Error(
+        `Liquidity too thin: even buying the entire ask (${askMaxContracts} contracts ≈ ` +
+          `$${(askMaxContracts * args.bestAskPx).toFixed(2)}) is below HL's $${HL_MIN_NOTIONAL_USD} ` +
+          `bid-notional floor (bid $${args.bestBidPx}).`,
+      );
+    }
+    limit = Math.min(args.bestAskPx * (1 + slip / 100), 0.999);
   }
-  if (contracts * args.bestBidPx < HL_MIN_NOTIONAL_USD) {
-    throw new Error(
-      `Liquidity too thin: even buying the entire ask (${askMaxContracts} contracts ≈ ` +
-        `$${(askMaxContracts * args.bestAskPx).toFixed(2)}) is below HL's $${HL_MIN_NOTIONAL_USD} ` +
-        `bid-notional floor (bid $${args.bestBidPx}).`,
-    );
-  }
-
-  const slip = args.slippagePct ?? 2;
-  // Outcome prices live in (0, 1). Don't bid above 1 — HF rejects.
-  const limit = Math.min(args.bestAskPx * (1 + slip / 100), 0.999);
 
   const action: OrderAction = {
     type: 'order',

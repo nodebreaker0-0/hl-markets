@@ -239,10 +239,18 @@ function Stat({
 function HoldingCard({ h, onAfterSell }: { h: Holding; onAfterSell: () => void }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  /** Portion of the holding to sell — 25 / 50 / 75 / 100. */
+  const [sellPct, setSellPct] = useState<25 | 50 | 75 | 100>(100);
   const { session } = useSession();
 
+  const sharesToSell = Math.max(1, Math.floor((h.shares * sellPct) / 100));
+  const sellNotional = h.bestBid !== null ? sharesToSell * h.bestBid : null;
   const canCashOut =
-    h.bestBid !== null && h.markValue !== null && h.markValue >= 10 && session !== null;
+    h.bestBid !== null &&
+    sellNotional !== null &&
+    sellNotional >= 10 &&
+    session !== null &&
+    sharesToSell > 0;
 
   const onCashOut = async (): Promise<void> => {
     if (!session || !h.bestBid || h.bestBid <= 0) return;
@@ -252,9 +260,9 @@ function HoldingCard({ h, onAfterSell }: { h: Holding; onAfterSell: () => void }
       const r = await placeMarketSell({
         address: session.address,
         assetId: outcomeAssetId(h.outcomeId, h.sideIdx),
-        shares: h.shares,
+        shares: sharesToSell,
         bestBidPx: h.bestBid,
-        bestBidSz: h.shares, // upper-bound at own holding; IOC trims if book is thinner
+        bestBidSz: sharesToSell, // upper-bound at our own slice; IOC trims if book is thinner
       });
       // r is the raw HF response — surface filled / resting / error as a toast.
       const obj = r as { response?: { data?: { statuses?: Array<{ filled?: { totalSz?: string; avgPx?: string; oid?: number }; error?: string }> } } };
@@ -318,11 +326,46 @@ function HoldingCard({ h, onAfterSell }: { h: Holding; onAfterSell: () => void }
         </div>
       </div>
 
+      {/* Partial cash out — pick a fraction */}
       <div className="mt-3 flex items-center justify-between gap-2">
         <div className="text-[11px] text-hl-subtle">
           {h.bestBid !== null
             ? `Cash out at bid ${(h.bestBid * 100).toFixed(1)}%`
             : 'No buyers — cash out unavailable.'}
+        </div>
+        <div className="inline-flex gap-1">
+          {([25, 50, 75, 100] as const).map((pct) => (
+            <button
+              key={pct}
+              type="button"
+              onClick={() => setSellPct(pct)}
+              className={clsx(
+                'rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                sellPct === pct
+                  ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint'
+                  : 'text-hl-subtle ring-hl-border hover:text-hl-text',
+              )}
+            >
+              {pct}%
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="text-[11px] text-hl-subtle">
+          Selling{' '}
+          <strong className="text-hl-text">
+            {sharesToSell} shares
+          </strong>
+          {sellNotional !== null && (
+            <>
+              {' '}
+              → <strong className="text-hl-text">${sellNotional.toFixed(2)}</strong>
+            </>
+          )}
+          {sellNotional !== null && sellNotional < 10 && (
+            <span className="ml-1 text-mainnet">· below $10 min</span>
+          )}
         </div>
         <button
           type="button"
@@ -333,7 +376,7 @@ function HoldingCard({ h, onAfterSell }: { h: Holding; onAfterSell: () => void }
             (!canCashOut || busy) && 'cursor-not-allowed opacity-40',
           )}
         >
-          {busy ? 'Selling…' : 'Cash out'}
+          {busy ? 'Selling…' : `Cash out ${sellPct}%`}
         </button>
       </div>
 

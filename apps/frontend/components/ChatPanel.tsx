@@ -75,10 +75,8 @@ export function ChatPanel({ marketKey, marketTitle }: ChatPanelProps) {
   const [err, setErr] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
-  /** address (lowercase) → position snapshot. Backend already caches 30s. */
-  const [positions, setPositions] = useState<Map<string, PositionResponse['side']>>(
-    new Map(),
-  );
+  /** address (lowercase) → full position snapshot. Backend already caches 30s. */
+  const [positions, setPositions] = useState<Map<string, PositionResponse>>(new Map());
   const wsRef = useRef<WebSocket | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const pendingAcks = useRef<Map<string, () => void>>(new Map());
@@ -126,14 +124,13 @@ export function ChatPanel({ marketKey, marketTitle }: ChatPanelProps) {
       fetchPosition(CURRENT_NETWORK, addr as `0x${string}`, marketKey)
         .then((p) => {
           setPositions((prev) => {
-            if (prev.get(addr) === p.side) return prev;
             const next = new Map(prev);
-            next.set(addr, p.side);
+            next.set(addr, p);
             return next;
           });
         })
         .catch(() => {
-          /* silently leave it unknown — badge falls back to "—" */
+          /* silently leave it unknown — badge falls back to "…" */
         })
         .finally(() => {
           inflight.current.delete(addr);
@@ -327,7 +324,7 @@ export function ChatPanel({ marketKey, marketTitle }: ChatPanelProps) {
             key={m.id}
             m={m}
             self={session?.address.toLowerCase() === m.address.toLowerCase()}
-            side={m.address ? positions.get(m.address.toLowerCase()) ?? null : null}
+            position={m.address ? positions.get(m.address.toLowerCase()) ?? null : null}
             onDelete={onDelete}
           />
         ))}
@@ -366,12 +363,12 @@ export function ChatPanel({ marketKey, marketTitle }: ChatPanelProps) {
 function MessageRow({
   m,
   self,
-  side,
+  position,
   onDelete,
 }: {
   m: ChatMessageView;
   self: boolean;
-  side: PositionResponse['side'] | null;
+  position: PositionResponse | null;
   onDelete: (id: string) => void;
 }) {
   if (m.deleted) {
@@ -391,7 +388,7 @@ function MessageRow({
         >
           {shortAddr(m.address)}
         </span>
-        <PositionBadge side={side} />
+        <PositionBadge p={position} />
         <span>{timeAgo(m.signedAt)}</span>
         {self && (
           <button
@@ -408,34 +405,46 @@ function MessageRow({
   );
 }
 
-function PositionBadge({ side }: { side: PositionResponse['side'] | null }) {
-  // null = not fetched yet. 'none' = fetched + empty. We show '—' for both
-  // but distinguish color slightly so loading state is obvious.
-  if (side === null) {
+function PositionBadge({ p }: { p: PositionResponse | null }) {
+  // null = not fetched yet. side === 'none' = fetched + empty.
+  if (p === null) {
     return (
       <span className="rounded-full bg-hl-bg/40 px-1.5 py-0 text-[9px] text-hl-subtle/40">
         …
       </span>
     );
   }
-  if (side === 'none') {
+  if (p.side === 'none' || p.shares <= 0 || p.holdings.length === 0) {
     return (
       <span className="rounded-full bg-hl-bg px-1.5 py-0 text-[9px] uppercase tracking-widest text-hl-subtle/60">
-        —
+        no pos
       </span>
     );
   }
-  const isYes = side === 'yes-long';
+  // Primary holding (largest by USD). If the user has positions in multiple
+  // outcomes in this question, we show the biggest and append "+N more" in
+  // the tooltip so the badge stays compact.
+  const primary = p.holdings[0]!;
+  const isYes = primary.sideIdx === 0;
+  const sharesShort = primary.shares >= 1000
+    ? `${(primary.shares / 1000).toFixed(1)}K`
+    : Math.round(primary.shares).toString();
+  const extra = p.holdings.length - 1;
+  const title = p.holdings
+    .map((h) => `${h.outcomeName} ${h.sideName} · ${h.shares} shares · $${h.notional.toFixed(2)}`)
+    .join('\n');
   return (
     <span
       className={clsx(
-        'rounded-full px-1.5 py-0 text-[9px] font-semibold uppercase tracking-widest ring-1',
+        'rounded-full px-1.5 py-0 text-[10px] font-semibold ring-1',
         isYes
           ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint/40'
           : 'bg-mainnet/15 text-mainnet ring-mainnet/40',
       )}
+      title={title}
     >
-      {isYes ? 'Yes long' : 'No long'}
+      {primary.outcomeName} {sharesShort} · ${primary.notional.toFixed(0)}
+      {extra > 0 && <span className="ml-1 opacity-60">+{extra}</span>}
     </span>
   );
 }

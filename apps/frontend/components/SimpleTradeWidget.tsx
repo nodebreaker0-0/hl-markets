@@ -15,7 +15,7 @@ import {
   fetchMaxBuilderFee,
   parsePctToTenthsBps,
 } from '@/lib/trade';
-import { fetchOrderBook, maxUsdAtTopOfBook, type OrderBook } from '@/lib/orderbook';
+import { fetchOrderBook, maxUsdAtTopOfBook, walkAsks, type OrderBook } from '@/lib/orderbook';
 import { EnableTradingModal } from '@/components/EnableTradingModal';
 import { CURRENT_NETWORK } from '@/lib/network';
 import { assetIdFromKey } from '@/lib/asset-id';
@@ -161,7 +161,13 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasAgent, approved, showOnboard, busy]);
 
-  const maxUsd = useMemo(() => (book ? maxUsdAtTopOfBook(book) : 0), [book]);
+  /** Total USD the ask side can absorb (Phase J.10 — across all levels,
+   *  not just top of book). */
+  const maxUsd = useMemo(
+    () => (book?.asks ? book.asks.reduce((a, l) => a + l.px * l.sz, 0) : 0),
+    [book],
+  );
+  const topOfBookUsd = useMemo(() => (book ? maxUsdAtTopOfBook(book) : 0), [book]);
   const askPx = book?.bestAsk?.px ?? null;
   const askSz = book?.bestAsk?.sz ?? 0;
   const bidPx = book?.bestBid?.px ?? null;
@@ -184,15 +190,23 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
   const usdNum = Number(usdInput);
   const usdValid = Number.isFinite(usdNum) && usdNum > 0;
   const cappedUsd = usdValid ? Math.min(usdNum, maxUsd) : 0;
-  // Same logic as placeMarketBuy: take max(user budget, bid-notional floor).
-  const contractsFromUsd =
-    cappedUsd > 0 && askPx ? Math.ceil(cappedUsd / askPx) : 0;
-  const actualContracts = Math.max(contractsFromUsd, minContracts);
-  const actualSpendUsd = askPx ? actualContracts * askPx : 0;
-  const previewContracts = actualContracts;
+  // Phase J.10 — walk asks to compute realistic preview (avg + levels touched).
+  const walkPreview = useMemo(() => {
+    if (!book?.asks?.length || cappedUsd <= 0) return null;
+    return walkAsks(book.asks, cappedUsd, 2);
+  }, [book, cappedUsd]);
+  const previewContracts = walkPreview
+    ? Math.max(walkPreview.contracts, minContracts)
+    : 0;
+  const actualSpendUsd = walkPreview ? walkPreview.spendUsd : 0;
+  const avgFillPx = walkPreview ? walkPreview.avgPx : (askPx ?? 0);
+  const levelsTouched = walkPreview ? walkPreview.levelsTouched : 0;
   const previewPayout = previewContracts; // each share pays $1 on win
   const belowMin = usdValid && cappedUsd < minUsd;
   const insufficientLiquidity = usdValid && maxUsd > 0 && maxUsd < minUsd;
+  /** User asked for more than the visible top-of-book can absorb. Surface
+   *  in red so they don't believe the typed $ number will spend in full. */
+  const overLiquidity = usdValid && maxUsd > 0 && usdNum > maxUsd + 0.01;
 
   if (!session) {
     return (
@@ -244,6 +258,7 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
         bestAskPx: askPx,
         bestAskSz: askSz,
         bestBidPx: bidPx ?? 0,
+        asks: book?.asks ?? undefined, // J.10 — walk-the-book
       });
       setResult(r);
       // Surface fill / partial / reject as a toast.
@@ -327,7 +342,12 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
                 onChange={(e) => setUsdInput(e.target.value)}
                 placeholder="$"
                 inputMode="decimal"
-                className="w-full rounded-lg border border-hl-border bg-hl-bg px-2 py-1.5 font-mono text-sm text-hl-text focus:border-hl-mint focus:outline-none"
+                className={clsx(
+                  'w-full rounded-lg border bg-hl-bg px-2 py-1.5 font-mono text-sm focus:outline-none',
+                  overLiquidity
+                    ? 'border-mainnet text-mainnet focus:border-mainnet'
+                    : 'border-hl-border text-hl-text focus:border-hl-mint',
+                )}
               />
               <button
                 type="button"
@@ -340,8 +360,13 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
             </div>
           </label>
 
-          {/* Liquidity / max / min line */}
-          <div className="text-[11px] text-hl-subtle">
+          {/* Liquidity / max / min line — red when user exceeds total ask depth */}
+          <div
+            className={clsx(
+              'text-[11px]',
+              overLiquidity ? 'text-mainnet font-semibold' : 'text-hl-subtle',
+            )}
+          >
             {bookLoading
               ? 'Loading orderbook…'
               : bookErr
@@ -350,31 +375,32 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
                   ? 'No sellers right now — nothing to fill against.'
                   : insufficientLiquidity
                     ? `Only $${maxUsd.toFixed(2)} on offer — below this market's $${minUsd.toFixed(2)} min.`
-                    : `Min $${minUsd.toFixed(2)} · Max fillable $${maxUsd.toFixed(2)} at ${(askPx * 100).toFixed(1)}%`}
+                    : overLiquidity
+                      ? `⚠ Only $${maxUsd.toFixed(2)} of total ask depth — your $${usdNum.toFixed(2)} will cap there.`
+                      : `Min $${minUsd.toFixed(2)} · Top of book $${topOfBookUsd.toFixed(2)} @ ${(askPx * 100).toFixed(1)}% · Total depth $${maxUsd.toFixed(2)}`}
           </div>
 
           {/* Payout preview */}
-          {cappedUsd > 0 && askPx && actualContracts > 0 && (
+          {cappedUsd > 0 && askPx && previewContracts > 0 && (
             <div className="rounded-xl border border-hl-mint/30 bg-hl-mint/5 p-2 text-[11px] text-hl-text">
               <div>
                 Spend{' '}
                 <strong className="text-hl-mint">${actualSpendUsd.toFixed(2)}</strong>{' '}
                 → {previewContracts} shares
-                {actualSpendUsd > usdNum + 0.01 && (
-                  <span className="text-hl-subtle">
-                    {' '}
-                    (bumped from ${usdNum.toFixed(2)} to clear HL's ${MIN_USD} bid-notional floor)
-                  </span>
-                )}
+                {' '}
+                <span className="text-hl-subtle">
+                  · avg fill {(avgFillPx * 100).toFixed(1)}%
+                  {levelsTouched > 1 && ` across ${levelsTouched} levels`}
+                </span>
               </div>
               <div>
                 Wins{' '}
                 <strong className="text-hl-mint">${previewPayout.toFixed(2)}</strong>{' '}
                 if {label} wins
-                {usdNum > maxUsd && (
-                  <span className="text-hl-subtle">
+                {overLiquidity && (
+                  <span className="text-mainnet font-semibold">
                     {' '}
-                    (capped from ${usdNum.toFixed(2)} → ${maxUsd.toFixed(2)} liquidity)
+                    (capped from ${usdNum.toFixed(2)} → ${maxUsd.toFixed(2)} total ask)
                   </span>
                 )}
               </div>
