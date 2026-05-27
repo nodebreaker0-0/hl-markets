@@ -33,6 +33,8 @@ import {
 } from '@/lib/outcome-question';
 import { walkAsks, fmtUsd, fmtSize, type AskWalk } from '@/lib/liquidity';
 import { CURRENT_NETWORK, type Network } from '@/lib/network';
+import { ChatPanel } from '@/components/ChatPanel';
+import { TradeWidget } from '@/components/TradeWidget';
 
 const REFRESH_MS = 30_000;
 const CANDLE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -368,6 +370,16 @@ function QuestionInner() {
           </p>
         </section>
       )}
+
+      {activeOption && (
+        <TradeWidget
+          assetKey={activeAssetKey}
+          sideName={`${activeOption.name} · Yes`}
+          midPrice={activeOption.yesPct}
+        />
+      )}
+
+      <ChatPanel marketKey={`q:${questionId}`} marketTitle={qTitle} />
 
       <details className="text-xs text-hl-subtle">
         <summary className="cursor-pointer hover:text-hl-mint">Raw question JSON</summary>

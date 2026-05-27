@@ -11,6 +11,10 @@ import { governanceRoutes } from '@/routes/governance';
 import { outcomeRoutes } from '@/routes/outcome';
 import { questionRoutes } from '@/routes/question';
 import { authRoutes } from '@/routes/auth';
+import { chatRoutes } from '@/routes/chat';
+import { positionRoutes } from '@/routes/position';
+import { tradeRoutes } from '@/routes/trade-forward';
+import { startChatWs } from '@/chat/ws-server';
 import { runIndexerOnce } from '@/indexer/run';
 import { closeDb } from '@/db/client';
 
@@ -33,6 +37,9 @@ app.route('/governance', governanceRoutes);
 app.route('/outcome', outcomeRoutes);
 app.route('/question', questionRoutes);
 app.route('/auth', authRoutes);
+app.route('/chat', chatRoutes);
+app.route('/position', positionRoutes);
+app.route('/trade-forward', tradeRoutes);
 
 app.notFound((c) => c.json({ error: 'not found' }, 404));
 app.onError((err, c) => {
@@ -49,6 +56,10 @@ const server = serve(
     console.info(`[hl-markets-api] listening on http://0.0.0.0:${info.port}`);
   },
 );
+
+// Attach WS upgrade handler to the same http.Server so chat shares the port.
+// @hono/node-server returns the underlying Node http.Server instance.
+startChatWs(server as unknown as import('node:http').Server);
 
 // Indexer cron — runs in same Node process. INDEXER_ENABLED=false in test envs.
 if (env.INDEXER_ENABLED) {

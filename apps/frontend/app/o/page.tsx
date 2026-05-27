@@ -35,6 +35,8 @@ import {
 import { expiryCountdown } from '@/lib/outcome-question';
 import { walkAsks, fmtUsd, fmtSize } from '@/lib/liquidity';
 import { CURRENT_NETWORK, type Network } from '@/lib/network';
+import { ChatPanel } from '@/components/ChatPanel';
+import { TradeWidget } from '@/components/TradeWidget';
 
 const REFRESH_MS = 30_000;
 const CANDLE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -322,6 +324,14 @@ function OutcomeInner() {
           </div>
         )}
       </section>
+
+      <TradeWidget
+        assetKey={currentAssetKey}
+        sideName={currentSideName}
+        midPrice={currentSidePct}
+      />
+
+      <ChatPanel marketKey={`o:${meta.outcomeId}`} marketTitle={meta.name} />
 
       <details className="text-xs text-hl-subtle">
         <summary className="cursor-pointer hover:text-hl-mint">Raw outcome JSON</summary>

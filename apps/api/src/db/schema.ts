@@ -159,6 +159,40 @@ export const chatSession = pgTable(
   }),
 );
 
+// ---- chat_message (Phase J.2) -------------------------------------------
+// One row per chat post. `market_key` is `q:<questionId>` or `o:<outcomeId>`.
+// Soft-delete only; hard-delete happens in the retention cron 24h after the
+// parent market settles.
+
+export const chatMessage = pgTable(
+  'chat_message',
+  {
+    /** ULID — sortable by time, used as the cursor for pagination. */
+    id: text('id').primaryKey(),
+    network: text('network').notNull(),
+    marketKey: text('market_key').notNull(),
+    /** Lowercase 0x... — copied from the session's address. */
+    address: text('address').notNull(),
+    body: text('body').notNull(),
+    signedAt: bigint('signed_at', { mode: 'bigint' }).notNull(),
+    deletedAt: bigint('deleted_at', { mode: 'bigint' }),
+  },
+  (t) => ({
+    roomIdx: index('chat_message_room_idx').on(t.network, t.marketKey, t.id),
+    addressIdx: index('chat_message_address_idx').on(t.address, t.signedAt),
+  }),
+);
+
+// ---- chat_admin (Phase J.2) ---------------------------------------------
+// Static allow-list of addresses that may delete *any* message (vs only their
+// own). Seeded with builnad's EOA — see specs/contracts/data-model.md.
+
+export const chatAdmin = pgTable('chat_admin', {
+  address: text('address').primaryKey(), // lowercase 0x...
+  note: text('note'),
+  addedAt: bigint('added_at', { mode: 'bigint' }).notNull(),
+});
+
 // ---- poll_vote (Phase G) ------------------------------------------------
 
 export const pollVote = pgTable(

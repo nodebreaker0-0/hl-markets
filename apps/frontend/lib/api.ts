@@ -391,3 +391,71 @@ export async function fetchBackendQuestionDetail(
 ): Promise<BackendOutcomeQuestionRow> {
   return getJson<BackendOutcomeQuestionRow>(`/question/${network}/${questionId}`);
 }
+
+// ---- chat REST + position (Phase J.2 / J.4) -----------------------------
+
+export interface ChatMessageView {
+  id: string;
+  address: string;
+  body: string;
+  signedAt: number;
+  deleted: boolean;
+}
+
+export interface ChatListResponse {
+  messages: ChatMessageView[];
+  nextBefore: string | null;
+}
+
+export async function fetchChat(
+  network: Network,
+  marketKey: string,
+  opts: { before?: string; limit?: number } = {},
+): Promise<ChatListResponse> {
+  const usp = new URLSearchParams({ network, marketKey });
+  if (opts.before) usp.set('before', opts.before);
+  if (opts.limit) usp.set('limit', String(opts.limit));
+  const res = await fetch(`${API_BASE}/chat?${usp.toString()}`, {
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`/chat ${res.status}`);
+  return (await res.json()) as ChatListResponse;
+}
+
+export async function deleteChatMessage(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/chat/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`/chat DELETE ${res.status}`);
+  }
+}
+
+export interface PositionResponse {
+  side: 'yes-long' | 'no-long' | 'none';
+  lastFetchedAt: number;
+}
+
+export async function fetchPosition(
+  network: Network,
+  address: `0x${string}`,
+  marketKey: string,
+): Promise<PositionResponse> {
+  const usp = new URLSearchParams({ network, address, marketKey });
+  const res = await fetch(`${API_BASE}/position?${usp.toString()}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`/position ${res.status}`);
+  return (await res.json()) as PositionResponse;
+}
+
+/** Build a WebSocket URL for the chat room. The session cookie flows in the
+ *  upgrade request automatically (browsers attach cookies to same-origin and
+ *  Lax cross-origin upgrades). */
+export function chatWsUrl(network: Network, marketKey: string): string {
+  const base = API_BASE.replace(/^http/, 'ws');
+  const usp = new URLSearchParams({ network, marketKey });
+  return `${base}/chat/ws?${usp.toString()}`;
+}

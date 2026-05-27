@@ -59,6 +59,65 @@ export async function getActiveChainId(): Promise<number> {
   return parseInt(hex, 16);
 }
 
+// ---- HL phantom chain 1337 (Phase J.5 L1-action signing) ----------------
+// HL L1 actions (order, approveBuilderFee, ...) require typed-data domain
+// chainId === 1337 on the wire. MetaMask v11+ enforces wallet.active === domain.
+// So before signing an L1 action we must add+switch to a 1337 chain. The name
+// is intentionally generic ("EIP712signer") so the user doesn't mistake the
+// chain entry for a real Hyperliquid network.
+
+const HL_PHANTOM_CHAIN = {
+  chainId: '0x539', // 1337
+  chainName: 'EIP712signer',
+  nativeCurrency: { name: 'Temp', symbol: 'TMP', decimals: 18 },
+  rpcUrls: ['https://api.hyperliquid-testnet.xyz'],
+  blockExplorerUrls: [],
+};
+
+export class WalletChainError extends Error {}
+
+export async function ensureHLPhantomChain(): Promise<void> {
+  const p = getProvider();
+  if (!p) throw new WalletNotFoundError();
+
+  const currentHex = (await p.request({ method: 'eth_chainId' })) as string;
+  if (currentHex === '0x539') return;
+
+  try {
+    await p.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0x539' }],
+    });
+    return;
+  } catch (e) {
+    const code = (e as { code?: number }).code;
+    if (code !== 4902 && code !== -32603) {
+      if (code === 4001) throw new WalletRejectedError('User rejected chain switch.');
+      throw e;
+    }
+  }
+  try {
+    await p.request({
+      method: 'wallet_addEthereumChain',
+      params: [HL_PHANTOM_CHAIN],
+    });
+  } catch (e) {
+    const code = (e as { code?: number }).code;
+    if (code === 4001) throw new WalletRejectedError('User rejected adding the phantom chain.');
+    throw new WalletChainError(
+      `Failed to add signer chain (1337): ${(e as Error).message}. ` +
+        `Add it manually in MetaMask: chainId=1337, name="EIP712signer", any RPC, currency TMP.`,
+    );
+  }
+  const afterHex = (await p.request({ method: 'eth_chainId' })) as string;
+  if (afterHex !== '0x539') {
+    await p.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0x539' }],
+    });
+  }
+}
+
 /** EIP-712 v4 signature over the typed data JSON. The wallet's active chain
  *  is used as `domain.chainId` — caller is responsible for making sure
  *  `typedData.domain.chainId` matches. */

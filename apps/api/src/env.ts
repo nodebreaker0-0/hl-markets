@@ -29,6 +29,21 @@ const Schema = z.object({
     .string()
     .default('false')
     .transform((s) => s.toLowerCase() === 'true'),
+
+  // ---- Phase J.5 Builder Code -------------------------------------------
+  /** Builder EOA, per network. Phase J.5 /trade-forward rejects any order
+   *  whose `action.builder.b` doesn't match the network-appropriate value. */
+  BUILDER_ADDR_TESTNET: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{40}$/, 'BUILDER_ADDR_TESTNET must be 0x + 40 hex')
+    .default('0x0000000000000000000000000000000000000000'),
+  BUILDER_ADDR_MAINNET: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{40}$/, 'BUILDER_ADDR_MAINNET must be 0x + 40 hex')
+    .default('0x0000000000000000000000000000000000000000'),
+  /** Max builder fee tenths-of-bps we will accept. HL hard caps at 100 (perp)
+   *  / 1000 (spot). 50 = 5 bps = 0.05% which is our default. */
+  BUILDER_MAX_FEE_TENTHS_BPS: z.coerce.number().int().min(0).max(1000).default(50),
 });
 
 export const env = Schema.parse(process.env);
