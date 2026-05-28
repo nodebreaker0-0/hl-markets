@@ -225,4 +225,87 @@ algebraic alpha 합성 필요, lint v0.1.0 alpha 가 미구현). 따라서:
 
 ---
 
+## D-015 (2026-05-29) — design.md export 의 components/lineHeight/fontFamily 미지원
+
+**발견 (W-8 도중)**: `npx @google/design.md export --format json-tailwind` 결과
+가 **fontSize / spacing / borderRadius / colors / fontFamily 만** Tailwind 로
+풀어줌. design.md 의 `components.*` 와 typography 의 `lineHeight` / `fontFamily`
+는 export 산출물에서 누락 (v0.1.0 alpha 의 한계).
+
+**영향**:
+- `h-button`, `text-button` (component 단위) 같은 utility 작동 X → `min-h-[44px]`
+  + spacing token 으로 대체.
+- typography 의 lineHeight 가 generated 에 안 옴 → component 마다 `leading-*`
+  utility 명시.
+
+**대응**: 의식적 허용 — 코드 안에서 `min-h-[44px]`, `leading-snug` 같은
+Tailwind built-in utility 보충. design.md upstream PR 또는 자체 lint plugin
+은 follow-up.
+
+**영향 토큰**: 모든 component variant 의 padding / height. follow-up D-020+ 에서.
+
+---
+
+## D-016 (2026-05-29) — Tailwind config 에서 JSON import = readFileSync
+
+**발견 (W-26 fix)**: `import generated from './...json'` 가 Tailwind config
+loader (Next.js dev mode) 와 호환 안 됨. Tailwind 가 config 컴파일 시 spread
+가 적용 안 되어 새 token classes (`bg-primary` 등) 가 generation 안 됨.
+chrome MCP 로 stylesheet 검사 시 `cssRulesFound: all false` 확인.
+
+**대응**: `readFileSync(join(__dirname, 'tailwind.theme.generated.json')) +
+JSON.parse` 패턴으로 변경. 모든 Tailwind config loader 호환.
+
+**영향**: `tailwind.config.ts` 의 generated import 방식. `make design-export`
+후 dev server restart 필요.
+
+---
+
+## D-017 (2026-05-29) — Layout max-width 768 → 1280
+
+**발견 (데스크탑 visual regression)**: 기존 `max-w-3xl` (768px) 가 1440px+
+wide 데스크탑 viewport 에서 콘텐츠 옹기종기 모임. Polymarket / Linear /
+Robinhood 모두 max-w 1200~1440px 사용.
+
+**대응**: `layout.tsx + 5 pages + SiteHeader` 일괄 `max-w-3xl → max-w-7xl`
+(1280px). 모바일 / 태블릿 영향 0 (그 viewport 에서 `max-w-*` 가 viewport 폭
+미만이라 무시), 데스크탑만 wide 펼침.
+
+**영향**: 전 페이지 wrapper. 모바일 첫 진입 사용자에게 시각 변경 없음.
+
+---
+
+## D-018 (2026-05-29) — OutcomeCard standalone dual Buy → single View
+
+**발견 (W-8 의 visual regression)**: OutcomeCard standalone variant 의 우측
+듀얼 `↑ Buy YES` / `↓ Buy NO` 버튼이 시각적으로 "buy 버튼" 인데 실제는
+parent `<Link>` 가 잡아서 detail 페이지로만 이동. **사용자 혼란** — Buy 인 줄
+알고 click 했지만 detail 페이지로 점프.
+
+**대응**: 단일 `View →` solid primary CTA 로 통일. dual Buy + quick trade
+modal 연결은 W-10 후속 (`e.stopPropagation()` + modal trigger 구현 시).
+
+**영향**: `components/OutcomeCard.tsx` 의 standalone variant. question variant
+는 이미 단일 `View →` 였음.
+
+---
+
+## D-019 (2026-05-29) — BasketSheet 의 step indicator (single sheet, visual progress)
+
+**결정 (W-11)**: BasketSheet 가 multi-page modal 이 아니라 단일 sheet 인데도
+시각적 단계 표시 (`[1] EDIT → [2] REVIEW → [3] SIGN`). state 에 따라 active
+dot 이 이동:
+- 일반 (legs > 0, !busy, !err) → EDIT 활성
+- err → REVIEW 활성 (사용자 확인 필요)
+- busy → SIGN 활성
+
+**이유**: 토스 multi-step DNA 의 시각적 단서. 사용자에게 "지금 무슨 단계인지"
+명료. 실제 multi-page 로 분리하는 건 추후 (`step-dot-1` / `step-dot-2` 별도
+view).
+
+**영향**: `components/BasketSheet.tsx` 의 header 아래 step indicator.
+DESIGN.md 의 `step-dot-active` / `step-dot-inactive` 토큰 binding.
+
+---
+
 ## (다음 결정은 여기 append)

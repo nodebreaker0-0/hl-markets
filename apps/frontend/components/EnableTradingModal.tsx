@@ -93,23 +93,23 @@ export function EnableTradingModal({ open, onClose, onEnabled }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-hl-border bg-hl-bg p-6">
-        <h2 className="text-lg font-semibold text-hl-text">Enable trading</h2>
-        <p className="mt-2 text-sm leading-relaxed text-hl-subtle">
+      <div className="w-full max-w-md rounded-2xl border border-divider bg-surface p-6">
+        <h2 className="text-lg font-semibold text-on-surface">Enable trading</h2>
+        <p className="mt-2 text-sm leading-relaxed text-on-surface-muted">
           Sign once to enable popup-free trading on hl-markets. We&apos;ll create a
           local trading key in this browser and register it with Hyperliquid. The
-          key can <strong className="text-hl-text">trade and cancel</strong> only — it
+          key can <strong className="text-on-surface">trade and cancel</strong> only — it
           cannot withdraw your funds or change account settings.
         </p>
 
-        <ol className="mt-4 space-y-2 rounded-xl border border-hl-border bg-hl-surface p-3 text-xs text-hl-subtle">
+        <ol className="mt-4 space-y-2 rounded-xl border border-divider bg-surface-elevated p-3 text-xs text-on-surface-muted">
           <Step label="Create a fresh trading key in this browser" done={step !== 'idle' && step !== 'creating-agent'} busy={step === 'creating-agent'} />
           <Step label="Register the key with Hyperliquid (1 wallet signature)" done={step === 'approving-builder' || step === 'done'} busy={step === 'approving-agent'} />
           <Step label={`Approve a max ${builder.feeBpsHuman} bps builder fee (1 wallet signature)`} done={step === 'done'} busy={step === 'approving-builder'} />
         </ol>
 
         {err && (
-          <div className="mt-3 rounded-xl border border-mainnet/40 bg-mainnet/10 px-3 py-2 text-xs text-mainnet">
+          <div className="mt-3 rounded-xl border border-accent-down/40 bg-accent-down/10 px-3 py-2 text-xs text-accent-down">
             {err}
           </div>
         )}
@@ -119,7 +119,7 @@ export function EnableTradingModal({ open, onClose, onEnabled }: Props) {
             type="button"
             onClick={onClose}
             disabled={step !== 'idle'}
-            className="flex-1 rounded-full bg-hl-surface px-3 py-2 text-xs text-hl-subtle ring-1 ring-hl-border hover:bg-hl-border disabled:opacity-40"
+            className="flex-1 rounded-full bg-surface-elevated px-3 py-2 text-xs text-on-surface-muted ring-1 ring-divider hover:bg-divider disabled:opacity-40"
           >
             Cancel
           </button>
@@ -128,8 +128,8 @@ export function EnableTradingModal({ open, onClose, onEnabled }: Props) {
             onClick={() => void onEnable()}
             disabled={step !== 'idle'}
             className={clsx(
-              'flex-1 rounded-full bg-hl-mint/15 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint',
-              step !== 'idle' ? 'cursor-wait opacity-60' : 'hover:bg-hl-mint/25',
+              'flex-1 rounded-full bg-primary/15 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-primary ring-1 ring-primary',
+              step !== 'idle' ? 'cursor-wait opacity-60' : 'hover:bg-primary/25',
             )}
           >
             {step === 'idle' ? 'Enable' : labelFor(step)}
@@ -198,15 +198,15 @@ function Step({
         className={clsx(
           'mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[9px] font-bold',
           done
-            ? 'border-hl-mint bg-hl-mint/20 text-hl-mint'
+            ? 'border-primary bg-primary/20 text-primary'
             : busy
-              ? 'border-hl-mint text-hl-mint'
-              : 'border-hl-border text-hl-subtle',
+              ? 'border-primary text-primary'
+              : 'border-divider text-on-surface-muted',
         )}
       >
         {done ? '✓' : busy ? '…' : ''}
       </span>
-      <span className={done ? 'text-hl-text' : busy ? 'text-hl-mint' : ''}>{label}</span>
+      <span className={done ? 'text-on-surface' : busy ? 'text-primary' : ''}>{label}</span>
     </li>
   );
 }

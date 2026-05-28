@@ -12,30 +12,30 @@ function Bar({ pct, threshold, label }: { pct: number; threshold: number; label:
   const reached = clamped >= threshold;
   return (
     <div>
-      <div className="mb-1 flex items-baseline justify-between text-[10px] uppercase tracking-wider text-hl-subtle">
+      <div className="mb-1 flex items-baseline justify-between text-[10px] uppercase tracking-wider text-on-surface-muted">
         <span>
-          {label} <span className="text-hl-subtle/70">· {(threshold * 100).toFixed(0)}%</span>
+          {label} <span className="text-on-surface-muted/70">· {(threshold * 100).toFixed(0)}%</span>
         </span>
         <span
           className={clsx(
             'font-mono',
-            reached ? 'text-hl-mint' : 'text-hl-text',
+            reached ? 'text-primary' : 'text-on-surface',
           )}
         >
           {(clamped * 100).toFixed(1)}%
         </span>
       </div>
-      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-hl-bg">
+      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-surface">
         <div
           className={clsx(
             'h-full rounded-full transition-all',
-            reached ? 'bg-hl-mint' : 'bg-hl-mint-dim/70',
+            reached ? 'bg-primary' : 'bg-primary-dim/70',
           )}
           style={{ width: `${clamped * 100}%` }}
         />
         {/* threshold notch */}
         <div
-          className="absolute top-0 h-full w-px bg-hl-text/40"
+          className="absolute top-0 h-full w-px bg-on-surface/40"
           style={{ left: `${threshold * 100}%` }}
           title={`${(threshold * 100).toFixed(0)}% threshold`}
         />

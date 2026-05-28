@@ -226,19 +226,19 @@ export function AIDiscovery(): JSX.Element {
 
   return (
     <section className="space-y-4">
-      <div className="rounded-2xl border border-hl-mint/30 bg-hl-mint/5 p-3">
+      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3">
         <div className="flex items-center justify-between">
-          <div className="text-[10px] uppercase tracking-widest text-hl-mint">
+          <div className="text-[10px] uppercase tracking-widest text-primary">
             ✨ AI Picks · live data + every active market
           </div>
           {autoStatus === 'running' && (
-            <span className="text-[10px] text-hl-subtle">running auto-scan…</span>
+            <span className="text-[10px] text-on-surface-muted">running auto-scan…</span>
           )}
           {autoStatus === 'cached' && (
-            <span className="text-[10px] text-hl-subtle">cached · re-scan to refresh</span>
+            <span className="text-[10px] text-on-surface-muted">cached · re-scan to refresh</span>
           )}
         </div>
-        <p className="mt-1 text-xs text-hl-subtle">
+        <p className="mt-1 text-xs text-on-surface-muted">
           AI scans every active market (mixing sports, crypto, politics, weather…) and
           enriches each candidate with live external data before picking the highest-EV
           basket. You decide which to bet — AI never auto-trades.
@@ -251,7 +251,7 @@ export function AIDiscovery(): JSX.Element {
           onChange={(e) => setQuery(e.target.value)}
           rows={2}
           placeholder='e.g. "World Cup, top 5 underpriced favorites"'
-          className="w-full resize-none rounded-xl border border-hl-border bg-hl-bg px-3 py-2 text-sm text-hl-text focus:border-hl-mint focus:outline-none"
+          className="w-full resize-none rounded-xl border border-divider bg-surface px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none"
         />
         <div className="flex flex-wrap gap-1.5">
           {DEFAULT_QUERIES.map((q) => (
@@ -259,7 +259,7 @@ export function AIDiscovery(): JSX.Element {
               key={q}
               type="button"
               onClick={() => setQuery(q)}
-              className="rounded-full border border-hl-border bg-hl-bg px-2.5 py-1 text-[10px] text-hl-subtle hover:text-hl-text"
+              className="rounded-full border border-divider bg-surface px-2.5 py-1 text-[10px] text-on-surface-muted hover:text-on-surface"
             >
               {q.slice(0, 40)}{q.length > 40 ? '…' : ''}
             </button>
@@ -270,7 +270,7 @@ export function AIDiscovery(): JSX.Element {
           onClick={() => void onRun()}
           disabled={busy || query.trim().length < 5}
           className={clsx(
-            'w-full rounded-full bg-hl-mint/15 px-3 py-2.5 text-sm font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint hover:bg-hl-mint/25',
+            'w-full rounded-full bg-primary/15 px-3 py-2.5 text-sm font-semibold uppercase tracking-widest text-primary ring-1 ring-primary hover:bg-primary/25',
             (busy || query.trim().length < 5) && 'cursor-not-allowed opacity-60',
           )}
         >
@@ -279,7 +279,7 @@ export function AIDiscovery(): JSX.Element {
       </div>
 
       {err && (
-        <div className="rounded-xl border border-mainnet/40 bg-mainnet/10 px-3 py-2 text-xs text-mainnet">
+        <div className="rounded-xl border border-accent-down/40 bg-accent-down/10 px-3 py-2 text-xs text-accent-down">
           {err}
           {err.includes('/settings') && (
             <>
@@ -295,21 +295,21 @@ export function AIDiscovery(): JSX.Element {
       {results !== null && (
         <>
           <div className="flex items-center justify-between">
-            <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+            <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
               {results.length} picks · scanned {candidateCount} active outcomes
             </div>
             {results.length > 0 && (
               <button
                 type="button"
                 onClick={addAll}
-                className="rounded-full bg-hl-mint/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint"
+                className="rounded-full bg-primary/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary ring-1 ring-primary"
               >
                 Add all → basket
               </button>
             )}
           </div>
           {results.length === 0 ? (
-            <div className="rounded-xl border border-hl-border bg-hl-surface/60 px-3 py-4 text-center text-xs text-hl-subtle">
+            <div className="rounded-xl border border-divider bg-surface-elevated/60 px-3 py-4 text-center text-xs text-on-surface-muted">
               No actionable opportunities for that query right now. Try another
               phrasing or relax the criteria.
             </div>
@@ -334,28 +334,28 @@ function RecommendationCard({
   onAdd: () => void;
 }): JSX.Element {
   const edgeTone =
-    r.edgePp > 5 ? 'text-hl-mint' : r.edgePp < -3 ? 'text-mainnet' : 'text-hl-subtle';
+    r.edgePp > 5 ? 'text-primary' : r.edgePp < -3 ? 'text-accent-down' : 'text-on-surface-muted';
   const expectedPayout = r.suggestedUsd > 0 && r.marketPct > 0
     ? r.suggestedUsd / (r.marketPct / 100)
     : 0;
 
   return (
-    <article className="rounded-xl border border-hl-border bg-hl-surface p-3">
+    <article className="rounded-xl border border-divider bg-surface-elevated p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-hl-text">
+          <div className="text-sm font-semibold text-on-surface">
             {r.outcomeName}
-            <span className="ml-1 text-[10px] font-normal text-hl-subtle">
+            <span className="ml-1 text-[10px] font-normal text-on-surface-muted">
               · {r.questionTitle}
             </span>
           </div>
-          <div className="mt-1 text-[11px] text-hl-subtle">{r.reasoning}</div>
+          <div className="mt-1 text-[11px] text-on-surface-muted">{r.reasoning}</div>
         </div>
         <div className="shrink-0 text-right">
-          <div className="mono text-xs text-hl-subtle">
+          <div className="mono text-xs text-on-surface-muted">
             {r.marketPct.toFixed(1)}% mkt
           </div>
-          <div className="mono text-sm font-semibold text-hl-mint">
+          <div className="mono text-sm font-semibold text-primary">
             {r.fairPct.toFixed(1)}% fair
           </div>
           <div className={clsx('mono text-[11px]', edgeTone)}>
@@ -365,12 +365,12 @@ function RecommendationCard({
         </div>
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <div className="text-[11px] text-hl-subtle">
-          Suggest <strong className="text-hl-text">${r.suggestedUsd.toFixed(2)}</strong>
+        <div className="text-[11px] text-on-surface-muted">
+          Suggest <strong className="text-on-surface">${r.suggestedUsd.toFixed(2)}</strong>
           {expectedPayout > 0 && (
             <>
               {' '}· wins{' '}
-              <strong className="text-hl-mint">${expectedPayout.toFixed(2)}</strong>
+              <strong className="text-primary">${expectedPayout.toFixed(2)}</strong>
             </>
           )}
           {' '}· conf {r.confidence}/5
@@ -378,7 +378,7 @@ function RecommendationCard({
         <button
           type="button"
           onClick={onAdd}
-          className="rounded-full border border-hl-mint/40 bg-hl-mint/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-hl-mint hover:bg-hl-mint/15"
+          className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary hover:bg-primary/15"
         >
           + Add
         </button>

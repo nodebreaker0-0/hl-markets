@@ -136,11 +136,11 @@ export function AIAnalyzePanel({
 
   if (!configured) {
     return (
-      <section className="rounded-2xl border border-hl-border bg-hl-surface/60 p-3 text-xs text-hl-subtle">
-        <div className="font-semibold text-hl-text">AI Analyze (off)</div>
+      <section className="rounded-2xl border border-divider bg-surface-elevated/60 p-3 text-xs text-on-surface-muted">
+        <div className="font-semibold text-on-surface">AI Analyze (off)</div>
         <p className="mt-1">
           Add your own OpenAI or Anthropic key in{' '}
-          <Link href="/settings" className="text-hl-mint hover:underline">
+          <Link href="/settings" className="text-primary hover:underline">
             Settings
           </Link>
           . hl-markets servers never see the key — direct browser → provider.
@@ -150,9 +150,9 @@ export function AIAnalyzePanel({
   }
 
   return (
-    <section className="rounded-2xl border border-hl-border bg-hl-surface p-3">
+    <section className="rounded-2xl border border-divider bg-surface-elevated p-3">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+        <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
           AI Analyze · {provider}
         </div>
         <button
@@ -160,7 +160,7 @@ export function AIAnalyzePanel({
           onClick={() => void onAnalyze()}
           disabled={busy}
           className={clsx(
-            'rounded-full bg-hl-mint/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint',
+            'rounded-full bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-primary ring-1 ring-primary',
             busy && 'cursor-wait opacity-60',
           )}
         >
@@ -169,7 +169,7 @@ export function AIAnalyzePanel({
       </div>
 
       {err && (
-        <div className="mt-2 rounded-lg border border-mainnet/40 bg-mainnet/10 px-2 py-1.5 text-[11px] text-mainnet">
+        <div className="mt-2 rounded-lg border border-accent-down/40 bg-accent-down/10 px-2 py-1.5 text-[11px] text-accent-down">
           {err}
         </div>
       )}
@@ -178,17 +178,17 @@ export function AIAnalyzePanel({
         <div className="mt-3 space-y-3">
           <Gauge fairPct={result.fairPct} marketPct={currentPct} confidence={result.confidence} />
           {result.reasoning.length > 0 && (
-            <ul className="space-y-1 text-[11px] text-hl-text">
+            <ul className="space-y-1 text-[11px] text-on-surface">
               {result.reasoning.map((b, i) => (
                 <li key={i} className="flex gap-1.5">
-                  <span className="text-hl-mint">•</span>
+                  <span className="text-primary">•</span>
                   <span>{b}</span>
                 </li>
               ))}
             </ul>
           )}
           {result.caveat && (
-            <div className="text-[10px] italic text-hl-subtle">⚠ {result.caveat}</div>
+            <div className="text-[10px] italic text-on-surface-muted">⚠ {result.caveat}</div>
           )}
           {suggestedUsd > 0 && onSuggestAmount && (
             <button
@@ -201,12 +201,12 @@ export function AIAnalyzePanel({
                   detail: 'Sign yourself — AI never auto-bets.',
                 });
               }}
-              className="w-full rounded-full bg-hl-mint/15 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint hover:bg-hl-mint/25"
+              className="w-full rounded-full bg-primary/15 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-primary ring-1 ring-primary hover:bg-primary/25"
             >
               Use ${suggestedUsd.toFixed(2)} (quarter-Kelly)
             </button>
           )}
-          <div className="text-center text-[10px] text-hl-subtle">
+          <div className="text-center text-[10px] text-on-surface-muted">
             Est cost: ${result.estCostUsd.toFixed(4)} · You sign every bet · AI never auto-trades
           </div>
         </div>
@@ -226,21 +226,21 @@ function Gauge({
 }): JSX.Element {
   const edge = fairPct - marketPct;
   const edgeTone =
-    Math.abs(edge) < 3 ? 'text-hl-subtle' : edge > 0 ? 'text-hl-mint' : 'text-mainnet';
+    Math.abs(edge) < 3 ? 'text-on-surface-muted' : edge > 0 ? 'text-primary' : 'text-accent-down';
   return (
-    <div className="rounded-xl border border-hl-mint/30 bg-hl-mint/5 p-2">
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-2">
       <div className="flex items-baseline justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+          <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
             AI fair
           </div>
-          <div className="mono text-2xl font-bold text-hl-mint">{fairPct.toFixed(1)}%</div>
+          <div className="mono text-2xl font-bold text-primary">{fairPct.toFixed(1)}%</div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+          <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
             Market
           </div>
-          <div className="mono text-base text-hl-text">{marketPct.toFixed(1)}%</div>
+          <div className="mono text-base text-on-surface">{marketPct.toFixed(1)}%</div>
         </div>
       </div>
       <div className="mt-1 flex items-center justify-between text-[10px]">
@@ -252,10 +252,10 @@ function Gauge({
           className={clsx(
             'rounded-full px-1.5 py-0 text-[9px] font-semibold uppercase tracking-widest',
             confidence === 'high'
-              ? 'bg-hl-mint/15 text-hl-mint'
+              ? 'bg-primary/15 text-primary'
               : confidence === 'medium'
-                ? 'bg-testnet/15 text-testnet'
-                : 'bg-hl-bg text-hl-subtle',
+                ? 'bg-status-warn/15 text-status-warn'
+                : 'bg-surface text-on-surface-muted',
           )}
         >
           {confidence} conf

@@ -13,6 +13,7 @@ import { AIDiscovery } from '@/components/AIDiscovery';
 import { CURRENT_NETWORK, type Network } from '@/lib/network';
 import { SearchBar } from '@/components/SearchBar';
 import { GovernanceCard } from '@/components/GovernanceCard';
+import { OutcomeCard } from '@/components/OutcomeCard';
 import Link from 'next/link';
 import {
   fetchValidatorL1Votes,
@@ -31,12 +32,7 @@ import {
 } from '@/lib/api';
 import { classify } from '@/lib/governance/classify';
 import { computeGovId } from '@/lib/governance/govId';
-import {
-  questionLabel,
-  optionLabel,
-  outcomeLabel,
-  expiryCountdown,
-} from '@/lib/outcome-question';
+import { questionLabel } from '@/lib/outcome-question';
 import type { GovernanceItem } from '@/lib/governance/types';
 
 type Tab = 'active' | 'markets' | 'historical' | 'ai-basket';
@@ -245,7 +241,7 @@ export default function HomePage() {
 
         <EndingSoon />
 
-        <nav className="flex shrink-0 gap-1 overflow-x-auto rounded-full bg-hl-surface p-1 ring-1 ring-hl-border self-start">
+        <nav className="flex shrink-0 gap-1 overflow-x-auto rounded-full bg-surface-elevated p-1 ring-1 ring-divider self-start">
           {(['active', 'markets', 'historical', 'ai-basket'] as const).map((t) => (
             <button
               key={t}
@@ -255,8 +251,8 @@ export default function HomePage() {
               className={clsx(
                 'rounded-full px-3 py-1.5 text-xs font-medium transition-colors sm:px-4',
                 tab === t
-                  ? 'bg-hl-mint/15 text-hl-mint ring-1 ring-hl-mint'
-                  : 'text-hl-subtle hover:text-hl-text',
+                  ? 'bg-primary/15 text-primary ring-1 ring-primary'
+                  : 'text-on-surface-muted hover:text-on-surface',
               )}
             >
               {t === 'active'
@@ -309,7 +305,7 @@ export default function HomePage() {
           <AIDiscovery />
         )}
 
-        <footer className="border-t border-hl-border pt-4 text-[11px] text-hl-subtle">
+        <footer className="border-t border-divider pt-4 text-[11px] text-on-surface-muted">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <span>
               hl-markets · HIP-4 outcome markets · no analytics · no key custody
@@ -340,7 +336,7 @@ function ActiveSection(props: {
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between text-xs text-hl-subtle">
+      <div className="flex items-center justify-between text-xs text-on-surface-muted">
         <span>
           {loading
             ? 'loading…'
@@ -352,20 +348,20 @@ function ActiveSection(props: {
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="rounded-full bg-hl-surface px-3 py-1 text-xs text-hl-text ring-1 ring-hl-border hover:bg-hl-border disabled:opacity-40"
+          className="rounded-full bg-surface-elevated px-3 py-1 text-xs text-on-surface ring-1 ring-divider hover:bg-divider disabled:opacity-40"
         >
           refresh
         </button>
       </div>
 
       {err && (
-        <div className="rounded-2xl border border-mainnet/40 bg-mainnet/10 p-3 text-sm text-mainnet">
+        <div className="rounded-2xl border border-accent-down/40 bg-accent-down/10 p-3 text-sm text-accent-down">
           {err}
         </div>
       )}
 
       {!err && items.length === 0 && !loading && (
-        <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-8 text-center text-sm text-hl-subtle">
+        <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-8 text-center text-sm text-on-surface-muted">
           {label === 'active'
             ? `No active governance on ${network}.`
             : `No historical governance on ${network} yet — the indexer marks pending → settled / expired only after expireTime passes.`}
@@ -421,7 +417,7 @@ function HistoricalSection(props: {
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between text-xs text-hl-subtle">
+      <div className="flex items-center justify-between text-xs text-on-surface-muted">
         <span>
           {loading
             ? 'loading…'
@@ -433,20 +429,20 @@ function HistoricalSection(props: {
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="rounded-full bg-hl-surface px-3 py-1 text-xs text-hl-text ring-1 ring-hl-border hover:bg-hl-border disabled:opacity-40"
+          className="rounded-full bg-surface-elevated px-3 py-1 text-xs text-on-surface ring-1 ring-divider hover:bg-divider disabled:opacity-40"
         >
           refresh
         </button>
       </div>
 
       {err && (
-        <div className="rounded-2xl border border-mainnet/40 bg-mainnet/10 p-3 text-sm text-mainnet">
+        <div className="rounded-2xl border border-accent-down/40 bg-accent-down/10 p-3 text-sm text-accent-down">
           {err}
         </div>
       )}
 
       {!err && empty && !loading && (
-        <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-8 text-center text-sm text-hl-subtle">
+        <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-8 text-center text-sm text-on-surface-muted">
           No historical outcomes on {network} yet — the indexer captures
           settled questions and expired governance after they fall off HF.
         </div>
@@ -454,7 +450,7 @@ function HistoricalSection(props: {
 
       {sortedQ.length > 0 && (
         <>
-          <h2 className="pt-2 text-xs uppercase tracking-widest text-hl-subtle">
+          <h2 className="pt-2 text-xs uppercase tracking-widest text-on-surface-muted">
             Settled questions
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -468,7 +464,7 @@ function HistoricalSection(props: {
       {items.length > 0 && (
         <>
           {sortedQ.length > 0 && (
-            <h2 className="pt-2 text-xs uppercase tracking-widest text-hl-subtle">
+            <h2 className="pt-2 text-xs uppercase tracking-widest text-on-surface-muted">
               Settled / expired governance
             </h2>
           )}
@@ -496,32 +492,32 @@ function SettledQuestionCard({ q }: { q: BackendOutcomeQuestionRow }) {
   return (
     <Link
       href={`/q?id=${q.questionId}`}
-      className="flex flex-col gap-2 rounded-2xl border border-hl-border bg-hl-surface p-4 transition-colors hover:border-hl-mint/50"
+      className="flex flex-col gap-2 rounded-2xl border border-divider bg-surface-elevated p-4 transition-colors hover:border-primary/50"
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold leading-snug text-hl-text">
+        <h3 className="text-base font-semibold leading-snug text-on-surface">
           {title}
         </h3>
-        <span className="shrink-0 rounded-full bg-hl-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-hl-subtle ring-1 ring-hl-border">
+        <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-muted ring-1 ring-divider">
           resolved
         </span>
       </div>
 
       {winnerId !== null ? (
-        <div className="rounded-xl border border-hl-mint/40 bg-hl-mint/10 p-2 text-[12px] text-hl-mint">
+        <div className="rounded-xl border border-primary/40 bg-primary/10 p-2 text-[12px] text-primary">
           <span className="mr-1 text-[10px] uppercase tracking-widest">winner</span>
           outcome <code className="mono">#{winnerId}</code>
         </div>
       ) : (
-        <div className="text-[11px] text-hl-subtle">
+        <div className="text-[11px] text-on-surface-muted">
           resolved with no winning option (fallback wins)
         </div>
       )}
 
-      <div className="text-[10px] text-hl-subtle">
+      <div className="text-[10px] text-on-surface-muted">
         {q.namedOutcomes.length} options · fallback #{q.fallbackOutcome}
       </div>
-      <div className="flex justify-between text-[10px] text-hl-subtle">
+      <div className="flex justify-between text-[10px] text-on-surface-muted">
         <span>question #{q.questionId}</span>
         {settledAt && (
           <span>
@@ -587,7 +583,7 @@ function MarketsSection(props: {
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between text-xs text-hl-subtle">
+      <div className="flex items-center justify-between text-xs text-on-surface-muted">
         <span>
           {loading
             ? 'loading…'
@@ -599,20 +595,20 @@ function MarketsSection(props: {
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="rounded-full bg-hl-surface px-3 py-1 text-xs text-hl-text ring-1 ring-hl-border hover:bg-hl-border disabled:opacity-40"
+          className="rounded-full bg-surface-elevated px-3 py-1 text-xs text-on-surface ring-1 ring-divider hover:bg-divider disabled:opacity-40"
         >
           refresh
         </button>
       </div>
 
       {err && (
-        <div className="rounded-2xl border border-mainnet/40 bg-mainnet/10 p-3 text-sm text-mainnet">
+        <div className="rounded-2xl border border-accent-down/40 bg-accent-down/10 p-3 text-sm text-accent-down">
           {err}
         </div>
       )}
 
       {!err && total === 0 && !loading && (
-        <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-8 text-center text-sm text-hl-subtle">
+        <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-8 text-center text-sm text-on-surface-muted">
           No outcome markets trading on {network} right now.
         </div>
       )}
@@ -620,8 +616,9 @@ function MarketsSection(props: {
       {sortedQuestions.length > 0 && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {sortedQuestions.map((q) => (
-            <QuestionCard
+            <OutcomeCard
               key={`${network}-q-${q.question}`}
+              variant="question"
               question={q}
               outcomeMap={outcomeMap}
               mids={mids}
@@ -633,14 +630,15 @@ function MarketsSection(props: {
       {standalone.length > 0 && (
         <>
           {sortedQuestions.length > 0 && (
-            <h2 className="pt-2 text-xs uppercase tracking-widest text-hl-subtle">
+            <h2 className="pt-2 text-xs uppercase tracking-widest text-on-surface-muted">
               Standalone markets
             </h2>
           )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {standalone.map((o) => (
-              <StandaloneOutcomeCard
+              <OutcomeCard
                 key={`${network}-o-${o.outcome}`}
+                variant="standalone"
                 outcome={o}
                 mids={mids}
               />
@@ -652,214 +650,3 @@ function MarketsSection(props: {
   );
 }
 
-// Helpers ----------------------------------------------------------------
-
-function assetKeysFor(outcomeId: number, sideCount: number): string[] {
-  // Matches the indexer hypothesis (verified for both 4-digit and 5-digit ids):
-  // assetKey = `#${outcomeId * 10 + sideIdx}`.
-  return Array.from({ length: sideCount }, (_, i) => `#${outcomeId * 10 + i}`);
-}
-
-function readMid(mids: AllMidsResponse, key: string): number | null {
-  const v = mids[key];
-  return v !== undefined && v !== null ? Number(v) : null;
-}
-
-function pctText(p: number | null, digits = 1): string {
-  return p !== null ? `${(p * 100).toFixed(digits)}%` : '—';
-}
-
-/** Polymarket-style multi-option card. Each option = one outcome; the option's
- *  % chance is its `Yes` (side 0) mid. */
-function QuestionCard({
-  question,
-  outcomeMap,
-  mids,
-}: {
-  question: OutcomeQuestion;
-  outcomeMap: Map<number, OutcomeMetaEntry>;
-  mids: AllMidsResponse;
-}) {
-  // For each named outcome: try to read its Yes (side 0) mid.
-  // We label by the DSL when the outcome's own name is generic
-  // ("Recurring Named Outcome") — falls through to `name` otherwise.
-  const options = question.namedOutcomes
-    .map((id) => {
-      const o = outcomeMap.get(id);
-      if (!o) return null;
-      const keys = assetKeysFor(id, o.sideSpecs.length);
-      const yesKey = keys[0];
-      const yesPct = yesKey ? readMid(mids, yesKey) : null;
-      const label = optionLabel(o.name, o.description ?? '', question.description ?? '');
-      return { outcomeId: id, name: label, yesPct };
-    })
-    .filter((x): x is { outcomeId: number; name: string; yesPct: number | null } => x !== null);
-
-  const qTitle = questionLabel(question.name, question.description ?? '');
-  const exp = expiryCountdown(question.description);
-
-  // "Leading" = the option with the highest yesPct (skipping nulls).
-  const leading = options.reduce<{ name: string; pct: number } | null>(
-    (best, cur) => {
-      if (cur.yesPct === null) return best;
-      if (!best || cur.yesPct > best.pct) return { name: cur.name, pct: cur.yesPct };
-      return best;
-    },
-    null,
-  );
-
-  // Keep the card height consistent across questions: show the top-N by
-  // current % chance, link out to /q for the rest. Long multi-option markets
-  // (e.g. 49 World Cup teams) would otherwise dominate the grid row.
-  const MAX_OPTIONS_PREVIEW = 5;
-  const sortedByPct = [...options].sort((a, b) => (b.yesPct ?? 0) - (a.yesPct ?? 0));
-  const previewOptions = sortedByPct.slice(0, MAX_OPTIONS_PREVIEW);
-  const hiddenCount = Math.max(0, options.length - MAX_OPTIONS_PREVIEW);
-
-  return (
-    <Link
-      href={`/q?id=${question.question}`}
-      className="flex flex-col gap-3 rounded-2xl border border-hl-border bg-hl-surface p-4 transition-colors hover:border-hl-mint/50"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold leading-snug text-hl-text">
-          {qTitle}
-        </h3>
-        <span className="shrink-0 rounded-full bg-hl-mint/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint/40">
-          {options.length} options
-        </span>
-      </div>
-
-      {leading && (
-        <div className="flex items-baseline gap-2">
-          <span className="font-mono text-3xl font-semibold leading-none text-hl-mint">
-            {pctText(leading.pct, 0)}
-          </span>
-          <span className="truncate text-xs uppercase tracking-widest text-hl-subtle">
-            {leading.name}
-          </span>
-        </div>
-      )}
-
-      <ul className="space-y-1.5">
-        {previewOptions.map((opt) => (
-          <li key={opt.outcomeId} className="space-y-0.5">
-            <div className="flex justify-between text-[11px]">
-              <span className="truncate pr-2 text-hl-text">{opt.name}</span>
-              <span className="shrink-0 font-mono text-hl-mint">
-                {pctText(opt.yesPct, 1)}
-              </span>
-            </div>
-            <div className="h-1 overflow-hidden rounded-full bg-hl-bg">
-              <div
-                className="h-full bg-hl-mint/80 transition-all"
-                style={{
-                  width: `${
-                    opt.yesPct !== null
-                      ? Math.max(0, Math.min(1, opt.yesPct)) * 100
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </li>
-        ))}
-        {hiddenCount > 0 && (
-          <li className="pt-1 text-[11px] text-hl-mint">
-            +{hiddenCount} more · view all →
-          </li>
-        )}
-      </ul>
-
-      <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-[10px] text-hl-subtle">
-        <span>question #{question.question}</span>
-        {exp && (
-          <span className={exp.expired ? 'text-mainnet' : 'text-hl-text'}>
-            {exp.label}
-          </span>
-        )}
-        <span>fallback #{question.fallbackOutcome}</span>
-      </div>
-    </Link>
-  );
-}
-
-/** Binary standalone outcome (not part of any question). One % readout + split bar. */
-function StandaloneOutcomeCard({
-  outcome,
-  mids,
-}: {
-  outcome: OutcomeMetaEntry;
-  mids: AllMidsResponse;
-}) {
-  const keys = assetKeysFor(outcome.outcome, outcome.sideSpecs.length);
-  const pcts = keys.map((k) => readMid(mids, k));
-  const primaryPct = pcts[0] ?? null;
-  const secondaryPct = pcts[1] ?? null;
-  const primaryName = outcome.sideSpecs[0]?.name ?? 'Yes';
-  const secondaryName = outcome.sideSpecs[1]?.name ?? 'No';
-  const hasPair = outcome.sideSpecs.length === 2;
-
-  const label = outcomeLabel(outcome.name, outcome.description ?? '');
-  const exp = expiryCountdown(outcome.description);
-
-  return (
-    <Link
-      href={`/o?id=${outcome.outcome}`}
-      className="flex flex-col gap-4 rounded-2xl border border-hl-border bg-hl-surface p-4 transition-colors hover:border-hl-mint/50"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold leading-snug text-hl-text">
-          {label}
-        </h3>
-        <span className="shrink-0 rounded-full bg-hl-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-hl-subtle ring-1 ring-hl-border">
-          binary
-        </span>
-      </div>
-
-      <div className="flex items-baseline gap-2">
-        <span className="font-mono text-4xl font-semibold leading-none text-hl-mint">
-          {pctText(primaryPct, 0)}
-        </span>
-        <span className="text-xs uppercase tracking-widest text-hl-subtle">
-          {primaryName}
-        </span>
-      </div>
-
-      {hasPair && primaryPct !== null && secondaryPct !== null ? (
-        <div className="space-y-1">
-          <div className="h-1.5 overflow-hidden rounded-full bg-mainnet/15">
-            <div
-              className="h-full bg-hl-mint transition-all"
-              style={{ width: `${Math.max(0, Math.min(1, primaryPct)) * 100}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] text-hl-subtle">
-            <span>
-              {primaryName} {(primaryPct * 100).toFixed(1)}%
-            </span>
-            <span>
-              {(secondaryPct * 100).toFixed(1)}% {secondaryName}
-            </span>
-          </div>
-        </div>
-      ) : (
-        outcome.sideSpecs.length > 2 && (
-          <div className="text-[10px] text-hl-subtle">
-            sides: {outcome.sideSpecs.map((s) => s.name).join(' · ')}
-          </div>
-        )
-      )}
-
-      <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-[10px] text-hl-subtle">
-        <span>outcome #{outcome.outcome}</span>
-        {exp && (
-          <span className={exp.expired ? 'text-mainnet' : 'text-hl-text'}>
-            {exp.label}
-          </span>
-        )}
-        <span>{outcome.quoteToken}</span>
-      </div>
-    </Link>
-  );
-}

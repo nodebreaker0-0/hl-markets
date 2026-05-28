@@ -1,4 +1,4 @@
-.PHONY: install lint typecheck test build verify clean db db-reset db-migrate constitution-gate bundle-size api-shape-test
+.PHONY: install lint typecheck test build verify clean db db-reset db-migrate constitution-gate bundle-size api-shape-test design-export design-lint verify-design
 
 # Root-level orchestration. apps/* have their own package.json + scripts.
 
@@ -109,8 +109,34 @@ bundle-size:
 api-shape-test:
 	@echo "(stub) — to be implemented when api routes are written"
 
+# ----- DESIGN.md v1 (Phase W) -----
+# Single source of truth (Constitution D-IV). 토큰 변경은 DESIGN.md 부터 →
+# `make design-export` 로 `apps/frontend/tailwind.theme.generated.json` 재생성
+# → re-build.
+
+design-export:
+	npx --yes @google/design.md@latest export --format json-tailwind DESIGN.md \
+		> apps/frontend/tailwind.theme.generated.json
+	@echo "  exported $$(wc -c < apps/frontend/tailwind.theme.generated.json) bytes"
+
+design-lint:
+	@npx --yes @google/design.md@latest lint DESIGN.md > /tmp/design-lint.json
+	@cat /tmp/design-lint.json | python3 -c "import json,sys;d=json.load(sys.stdin);print('errors:',d['summary']['errors'],'/ warnings:',d['summary']['warnings'],'/ infos:',d['summary']['infos']);sys.exit(1 if d['summary']['errors']>0 else 0)"
+
+# Constitution D-X — design drift detector. 코드에서 hex literal 직접 사용 0건
+# (DESIGN.md, tailwind.config, tailwind.theme.generated.json, globals.css 의
+# CSS variable mirror, hash/SHA 류 라벨은 제외). D-014 의 visual drift 결판.
+verify-design: design-lint
+	@echo "== W-6. design drift (hardcoded hex in *.tsx / *.ts under app|components|lib) =="
+	@! grep -rnE "#[0-9a-fA-F]{3,8}" \
+		apps/frontend/app apps/frontend/components apps/frontend/lib \
+		--include='*.ts' --include='*.tsx' 2>/dev/null \
+		| grep -vE "(SHA|sha|hex|0x|hash|tnum|//.*color|@deprecated)" \
+		| head -1 | grep -q . && (echo "  hex literal in app/components/lib — use DESIGN.md token"; exit 1) || true
+	@echo "  ok"
+
 # ----- aggregate verify -----
-verify: lint typecheck test build constitution-gate bundle-size
+verify: lint typecheck test build constitution-gate bundle-size verify-design
 	@echo "== verify all green =="
 
 clean:

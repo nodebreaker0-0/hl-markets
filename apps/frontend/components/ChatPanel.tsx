@@ -302,10 +302,10 @@ export function ChatPanel({ marketKey, marketTitle }: ChatPanelProps) {
   }, [session, wsConnected]);
 
   return (
-    <section className="flex flex-col rounded-2xl border border-hl-border bg-hl-surface">
-      <header className="flex items-center justify-between border-b border-hl-border px-4 py-2 text-xs text-hl-subtle">
+    <section className="flex flex-col rounded-2xl border border-divider bg-surface-elevated">
+      <header className="flex items-center justify-between border-b border-divider px-4 py-2 text-xs text-on-surface-muted">
         <span className="uppercase tracking-widest">Chat</span>
-        <span className={clsx(wsConnected ? 'text-hl-mint' : 'text-hl-subtle/60')}>
+        <span className={clsx(wsConnected ? 'text-primary' : 'text-on-surface-muted/60')}>
           {wsConnected ? '● live' : '○ offline'}
         </span>
       </header>
@@ -315,7 +315,7 @@ export function ChatPanel({ marketKey, marketTitle }: ChatPanelProps) {
         className="max-h-96 min-h-[12rem] overflow-y-auto px-4 py-3 text-sm"
       >
         {messages.length === 0 && (
-          <div className="py-6 text-center text-xs text-hl-subtle/70">
+          <div className="py-6 text-center text-xs text-on-surface-muted/70">
             No messages yet — be first.
           </div>
         )}
@@ -331,12 +331,12 @@ export function ChatPanel({ marketKey, marketTitle }: ChatPanelProps) {
       </div>
 
       {err && (
-        <div className="border-t border-hl-border bg-mainnet/5 px-4 py-1.5 text-[11px] text-mainnet">
+        <div className="border-t border-divider bg-accent-down/5 px-4 py-1.5 text-[11px] text-accent-down">
           {err}
         </div>
       )}
 
-      <footer className="border-t border-hl-border p-3">
+      <footer className="border-t border-divider p-3">
         <textarea
           value={composer}
           onChange={(e) => setComposer(e.target.value.slice(0, COMPOSER_MAX))}
@@ -345,13 +345,13 @@ export function ChatPanel({ marketKey, marketTitle }: ChatPanelProps) {
           placeholder={canSend ? 'Say something…' : 'Connect to chat'}
           disabled={!canSend || sending}
           className={clsx(
-            'w-full resize-none rounded-xl border border-hl-border bg-hl-bg px-3 py-2 text-sm text-hl-text placeholder:text-hl-subtle/60 focus:border-hl-mint focus:outline-none',
+            'w-full resize-none rounded-xl border border-divider bg-surface px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-muted/60 focus:border-primary focus:outline-none',
             !canSend && 'cursor-not-allowed opacity-60',
           )}
         />
-        <div className="mt-1.5 flex items-center justify-between text-[10px] text-hl-subtle">
+        <div className="mt-1.5 flex items-center justify-between text-[10px] text-on-surface-muted">
           <span>{composerHint}</span>
-          <span className={composer.length > COMPOSER_MAX - 50 ? 'text-mainnet' : ''}>
+          <span className={composer.length > COMPOSER_MAX - 50 ? 'text-accent-down' : ''}>
             {composer.length}/{COMPOSER_MAX}
           </span>
         </div>
@@ -373,16 +373,16 @@ function MessageRow({
 }) {
   if (m.deleted) {
     return (
-      <div className="py-1.5 text-[11px] italic text-hl-subtle/50">message deleted</div>
+      <div className="py-1.5 text-[11px] italic text-on-surface-muted/50">message deleted</div>
     );
   }
   return (
     <div className="group py-1.5">
-      <div className="flex items-baseline gap-2 text-[11px] text-hl-subtle">
+      <div className="flex items-baseline gap-2 text-[11px] text-on-surface-muted">
         <span
           className={clsx(
             'font-mono',
-            self ? 'text-hl-mint' : 'text-hl-text',
+            self ? 'text-primary' : 'text-on-surface',
           )}
           title={m.address}
         >
@@ -394,13 +394,13 @@ function MessageRow({
           <button
             type="button"
             onClick={() => onDelete(m.id)}
-            className="ml-auto opacity-0 transition-opacity hover:text-mainnet group-hover:opacity-100"
+            className="ml-auto opacity-0 transition-opacity hover:text-accent-down group-hover:opacity-100"
           >
             delete
           </button>
         )}
       </div>
-      <div className="whitespace-pre-wrap break-words text-sm text-hl-text">{m.body}</div>
+      <div className="whitespace-pre-wrap break-words text-sm text-on-surface">{m.body}</div>
     </div>
   );
 }
@@ -409,14 +409,14 @@ function PositionBadge({ p }: { p: PositionResponse | null }) {
   // null = not fetched yet. side === 'none' = fetched + empty.
   if (p === null) {
     return (
-      <span className="rounded-full bg-hl-bg/40 px-1.5 py-0 text-[9px] text-hl-subtle/40">
+      <span className="rounded-full bg-surface/40 px-1.5 py-0 text-[9px] text-on-surface-muted/40">
         …
       </span>
     );
   }
   if (p.side === 'none' || p.shares <= 0 || p.holdings.length === 0) {
     return (
-      <span className="rounded-full bg-hl-bg px-1.5 py-0 text-[9px] uppercase tracking-widest text-hl-subtle/60">
+      <span className="rounded-full bg-surface px-1.5 py-0 text-[9px] uppercase tracking-widest text-on-surface-muted/60">
         no pos
       </span>
     );
@@ -438,8 +438,8 @@ function PositionBadge({ p }: { p: PositionResponse | null }) {
       className={clsx(
         'rounded-full px-1.5 py-0 text-[10px] font-semibold ring-1',
         isYes
-          ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint/40'
-          : 'bg-mainnet/15 text-mainnet ring-mainnet/40',
+          ? 'bg-primary/15 text-primary ring-primary/40'
+          : 'bg-accent-down/15 text-accent-down ring-accent-down/40',
       )}
       title={title}
     >

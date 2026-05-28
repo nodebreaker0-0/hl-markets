@@ -25,7 +25,7 @@ export function SearchBar({ query, onQueryChange, placeholder }: SearchBarProps)
         placeholder={placeholder ?? 'Search markets…'}
         spellCheck={false}
         autoComplete="off"
-        className="w-full rounded-full bg-hl-surface px-4 py-2.5 text-sm text-hl-text ring-1 ring-hl-border placeholder:text-hl-subtle/70 focus:outline-none focus:ring-2 focus:ring-hl-mint/60"
+        className="w-full rounded-full bg-surface-elevated px-4 py-2.5 text-sm text-on-surface ring-1 ring-divider placeholder:text-on-surface-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/60"
       />
     </div>
   );

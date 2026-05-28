@@ -46,10 +46,10 @@ export function ArbAlerts(): JSX.Element | null {
   if (opps.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-hl-mint/40 bg-hl-mint/5 p-3">
-      <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-hl-mint">
+    <section className="rounded-2xl border border-primary/40 bg-primary/5 p-3">
+      <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-primary">
         <span>⚡ Arb opportunities</span>
-        <span className="text-hl-subtle">
+        <span className="text-on-surface-muted">
           {opps.length} found · refreshes every {REFRESH_MS / 1000}s
         </span>
       </div>
@@ -59,7 +59,7 @@ export function ArbAlerts(): JSX.Element | null {
         ))}
       </div>
       {error && (
-        <div className="mt-2 text-[10px] text-hl-subtle">scanner: {error}</div>
+        <div className="mt-2 text-[10px] text-on-surface-muted">scanner: {error}</div>
       )}
     </section>
   );
@@ -67,21 +67,21 @@ export function ArbAlerts(): JSX.Element | null {
 
 function ArbRow({ opp }: { opp: ArbOpportunity }): JSX.Element {
   return (
-    <article className="flex flex-col gap-1 rounded-xl border border-hl-mint/30 bg-hl-bg/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+    <article className="flex flex-col gap-1 rounded-xl border border-primary/30 bg-surface/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <Link
           href={`/q/?id=${opp.question.question}`}
-          className="text-sm font-semibold text-hl-text hover:text-hl-mint"
+          className="text-sm font-semibold text-on-surface hover:text-primary"
         >
           {opp.question.name}
         </Link>
-        <div className="mt-0.5 text-[11px] text-hl-subtle">
+        <div className="mt-0.5 text-[11px] text-on-surface-muted">
           {opp.optionCount} options · ask sum{' '}
-          <strong className="text-hl-mint">${opp.askSum.toFixed(3)}</strong>
+          <strong className="text-primary">${opp.askSum.toFixed(3)}</strong>
           {' · spend '}
-          <strong className="text-hl-text">${opp.minBasketCost.toFixed(2)}</strong>
+          <strong className="text-on-surface">${opp.minBasketCost.toFixed(2)}</strong>
           {' → guaranteed '}
-          <strong className="text-hl-mint">+${opp.estimatedProfit.toFixed(2)}</strong>
+          <strong className="text-primary">+${opp.estimatedProfit.toFixed(2)}</strong>
           {' ('}
           {(opp.estimatedRoi * 100).toFixed(2)}
           {'%)'}
@@ -114,8 +114,8 @@ function ArbRow({ opp }: { opp: ArbOpportunity }): JSX.Element {
           });
         }}
         className={clsx(
-          'self-start rounded-full bg-hl-mint/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint',
-          'hover:bg-hl-mint/25',
+          'self-start rounded-full bg-primary/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary ring-1 ring-primary',
+          'hover:bg-primary/25',
         )}
       >
         Load to basket →

@@ -24,9 +24,9 @@ function fmtExpire(unixMs: number): string {
 import type { Variant } from '@/lib/governance/classify';
 
 const variantBadge: Record<Variant, string> = {
-  outcome: 'bg-hl-mint/15 text-hl-mint ring-hl-mint/40',
-  delisting: 'bg-mainnet/15 text-mainnet ring-mainnet/40',
-  unknown: 'bg-testnet/15 text-testnet ring-testnet/40',
+  outcome: 'bg-primary/15 text-primary ring-primary/40',
+  delisting: 'bg-accent-down/15 text-accent-down ring-accent-down/40',
+  unknown: 'bg-status-warn/15 text-status-warn ring-status-warn/40',
 };
 
 const variantLabel: Record<Variant, string> = {
@@ -50,11 +50,11 @@ export function GovernanceCard({ item, ctx }: GovernanceCardProps) {
     <Link
       href={`/g/?network=${item.network}&id=${item.govId}`}
       className={clsx(
-        'group relative flex flex-col gap-4 rounded-2xl border border-hl-border bg-hl-surface p-5 shadow-card transition-all',
+        'group relative flex flex-col gap-4 rounded-2xl border border-divider bg-surface-elevated p-5 shadow-card transition-all',
         'hover:-translate-y-0.5 hover:shadow-card-hover',
         item.network === 'mainnet'
-          ? 'hover:ring-1 hover:ring-mainnet/40'
-          : 'hover:ring-1 hover:ring-testnet/40',
+          ? 'hover:ring-1 hover:ring-accent-down/40'
+          : 'hover:ring-1 hover:ring-status-warn/40',
       )}
     >
       <div className="flex items-center justify-between gap-2">
@@ -66,7 +66,7 @@ export function GovernanceCard({ item, ctx }: GovernanceCardProps) {
         >
           {variantLabel[item.variant]}
         </span>
-        <span className="text-[10px] uppercase tracking-widest text-hl-subtle">
+        <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">
           {item.network} · expires in {fmtExpire(item.expireTime)}
         </span>
       </div>
@@ -75,17 +75,17 @@ export function GovernanceCard({ item, ctx }: GovernanceCardProps) {
 
       <QuorumBar quorum={quorum} compact />
 
-      <div className="flex items-center justify-between gap-2 border-t border-hl-border pt-3 text-xs text-hl-subtle">
+      <div className="flex items-center justify-between gap-2 border-t border-divider pt-3 text-xs text-on-surface-muted">
         <div className="min-w-0 truncate">
-          <span className="text-hl-text">{split.voted.length}</span> / {idx.active.length} voted
+          <span className="text-on-surface">{split.voted.length}</span> / {idx.active.length} voted
           {split.voted.length > 0 && (
-            <span className="ml-1 truncate text-hl-subtle/80">
+            <span className="ml-1 truncate text-on-surface-muted/80">
               · {split.voted.slice(0, 3).map((v) => v.name).join(', ')}
               {split.voted.length > 3 && ` +${split.voted.length - 3}`}
             </span>
           )}
         </div>
-        <span className="shrink-0 text-hl-mint opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100">
           Open →
         </span>
       </div>

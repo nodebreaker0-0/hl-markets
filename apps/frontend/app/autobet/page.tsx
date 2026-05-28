@@ -35,7 +35,7 @@ export default function AutobetPage(): JSX.Element {
 
   if (!config || !state) {
     return (
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6">
         <SiteHeader />
       </main>
     );
@@ -106,13 +106,13 @@ export default function AutobetPage(): JSX.Element {
   const remainingToday = Math.max(0, config.dailyBudgetUsd - state.todaySpentUsd);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6">
       <SiteHeader />
 
       <header>
-        <div className="text-xs uppercase tracking-widest text-hl-subtle">Settings</div>
-        <h1 className="mt-1 text-xl font-semibold text-hl-text">Auto-bet</h1>
-        <p className="mt-1 text-xs text-hl-subtle">
+        <div className="text-xs uppercase tracking-widest text-on-surface-muted">Settings</div>
+        <h1 className="mt-1 text-xl font-semibold text-on-surface">Auto-bet</h1>
+        <p className="mt-1 text-xs text-on-surface-muted">
           LLM-driven scanner places agent-signed bets when the AI thinks the market is
           mispriced by more than your threshold. Daily and per-bet caps. Hard category
           block. You can stop it any time.
@@ -122,15 +122,15 @@ export default function AutobetPage(): JSX.Element {
       <section className={clsx(
         'rounded-2xl border p-4',
         config.enabled
-          ? 'border-hl-mint/40 bg-hl-mint/5'
-          : 'border-mainnet/30 bg-mainnet/5',
+          ? 'border-primary/40 bg-primary/5'
+          : 'border-accent-down/30 bg-accent-down/5',
       )}>
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm font-semibold text-hl-text">
+            <div className="text-sm font-semibold text-on-surface">
               {config.enabled ? 'Auto-bet is ON' : 'Auto-bet is OFF'}
             </div>
-            <div className="mt-0.5 text-[11px] text-hl-subtle">
+            <div className="mt-0.5 text-[11px] text-on-surface-muted">
               {config.enabled
                 ? `Today spent $${state.todaySpentUsd.toFixed(2)} / $${config.dailyBudgetUsd} · remaining $${remainingToday.toFixed(2)}`
                 : 'Enable below to start scanning. You can run a dry-run first.'}
@@ -142,8 +142,8 @@ export default function AutobetPage(): JSX.Element {
             className={clsx(
               'rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-widest ring-1',
               config.enabled
-                ? 'bg-mainnet/15 text-mainnet ring-mainnet'
-                : 'bg-hl-mint/15 text-hl-mint ring-hl-mint',
+                ? 'bg-accent-down/15 text-accent-down ring-accent-down'
+                : 'bg-primary/15 text-primary ring-primary',
             )}
           >
             {config.enabled ? 'Stop' : 'Enable'}
@@ -151,8 +151,8 @@ export default function AutobetPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
-        <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+      <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
+        <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
           Caps
         </div>
         <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -191,8 +191,8 @@ export default function AutobetPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
-        <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+      <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
+        <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
           Categories
         </div>
         <ListField
@@ -209,13 +209,13 @@ export default function AutobetPage(): JSX.Element {
         />
       </section>
 
-      <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
+      <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+            <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
               Dry-run
             </div>
-            <div className="mt-1 text-xs text-hl-subtle">
+            <div className="mt-1 text-xs text-on-surface-muted">
               Scans active markets with your current settings, places bets if criteria
               match. Same as enabling, but immediate. Use to validate config.
             </div>
@@ -225,7 +225,7 @@ export default function AutobetPage(): JSX.Element {
             onClick={() => void onDryRun()}
             disabled={running}
             className={clsx(
-              'rounded-full bg-hl-mint/15 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint',
+              'rounded-full bg-primary/15 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-primary ring-1 ring-primary',
               running && 'cursor-wait opacity-60',
             )}
           >
@@ -235,11 +235,11 @@ export default function AutobetPage(): JSX.Element {
       </section>
 
       <section>
-        <div className="mb-2 text-[10px] uppercase tracking-widest text-hl-subtle">
+        <div className="mb-2 text-[10px] uppercase tracking-widest text-on-surface-muted">
           Recent auto-bets
         </div>
         {state.recentBets.length === 0 ? (
-          <div className="rounded-xl border border-hl-border bg-hl-surface/60 px-3 py-4 text-center text-xs text-hl-subtle">
+          <div className="rounded-xl border border-divider bg-surface-elevated/60 px-3 py-4 text-center text-xs text-on-surface-muted">
             None yet — try a dry-run.
           </div>
         ) : (
@@ -247,30 +247,30 @@ export default function AutobetPage(): JSX.Element {
             {state.recentBets.slice(0, 10).map((r) => (
               <div
                 key={`${r.ts}-${r.outcomeName}`}
-                className="flex items-center justify-between rounded-lg border border-hl-border bg-hl-surface/70 px-3 py-2 text-xs"
+                className="flex items-center justify-between rounded-lg border border-divider bg-surface-elevated/70 px-3 py-2 text-xs"
               >
                 <div>
                   <span
                     className={clsx(
                       r.status === 'filled'
-                        ? 'text-hl-mint'
+                        ? 'text-primary'
                         : r.status === 'rejected'
-                          ? 'text-testnet'
-                          : 'text-mainnet',
+                          ? 'text-status-warn'
+                          : 'text-accent-down',
                     )}
                   >
                     {r.status}
                   </span>{' '}
-                  <span className="text-hl-text">{r.outcomeName}</span>{' '}
-                  <span className="text-hl-subtle">· {r.questionTitle}</span>
+                  <span className="text-on-surface">{r.outcomeName}</span>{' '}
+                  <span className="text-on-surface-muted">· {r.questionTitle}</span>
                   {r.spendUsd > 0 && (
-                    <span className="ml-1 text-hl-text">· ${r.spendUsd.toFixed(2)}</span>
+                    <span className="ml-1 text-on-surface">· ${r.spendUsd.toFixed(2)}</span>
                   )}
                   {r.edgePp > 0 && (
-                    <span className="ml-1 text-hl-subtle">· {r.edgePp.toFixed(1)}pp edge</span>
+                    <span className="ml-1 text-on-surface-muted">· {r.edgePp.toFixed(1)}pp edge</span>
                   )}
                 </div>
-                <div className="text-[10px] text-hl-subtle">
+                <div className="text-[10px] text-on-surface-muted">
                   {Math.floor((Date.now() - r.ts) / 1000)}s ago
                 </div>
               </div>
@@ -280,7 +280,7 @@ export default function AutobetPage(): JSX.Element {
       </section>
 
       {!llmReady && (
-        <div className="rounded-xl border border-testnet/40 bg-testnet/10 px-3 py-2 text-xs text-testnet">
+        <div className="rounded-xl border border-status-warn/40 bg-status-warn/10 px-3 py-2 text-xs text-status-warn">
           You need an LLM key first.{' '}
           <Link href="/settings" className="underline">Open Settings →</Link>
         </div>
@@ -306,16 +306,16 @@ function NumField({
 }): JSX.Element {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-widest text-hl-subtle">{label}</span>
+      <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">{label}</span>
       <input
         type="number"
         value={value}
         min={min}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="rounded-lg border border-hl-border bg-hl-bg px-2 py-1.5 font-mono text-sm text-hl-text focus:border-hl-mint focus:outline-none"
+        className="rounded-lg border border-divider bg-surface px-2 py-1.5 font-mono text-sm text-on-surface focus:border-primary focus:outline-none"
       />
-      {hint && <span className="text-[10px] text-hl-subtle">{hint}</span>}
+      {hint && <span className="text-[10px] text-on-surface-muted">{hint}</span>}
     </label>
   );
 }
@@ -333,11 +333,11 @@ function SelectField({
 }): JSX.Element {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-widest text-hl-subtle">{label}</span>
+      <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-hl-border bg-hl-bg px-2 py-1.5 text-sm text-hl-text focus:border-hl-mint focus:outline-none"
+        className="rounded-lg border border-divider bg-surface px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -362,7 +362,7 @@ function ListField({
 }): JSX.Element {
   return (
     <label className="mt-3 flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-widest text-hl-subtle">{label}</span>
+      <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">{label}</span>
       <input
         type="text"
         value={value.join(', ')}
@@ -375,7 +375,7 @@ function ListField({
               .filter((s) => s.length > 0),
           )
         }
-        className="rounded-lg border border-hl-border bg-hl-bg px-2 py-1.5 font-mono text-xs text-hl-text focus:border-hl-mint focus:outline-none"
+        className="rounded-lg border border-divider bg-surface px-2 py-1.5 font-mono text-xs text-on-surface focus:border-primary focus:outline-none"
       />
     </label>
   );

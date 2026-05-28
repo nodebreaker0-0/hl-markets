@@ -310,25 +310,25 @@ export function SimpleTradeWidget({
 
   return (
     <>
-      <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
+      <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
         {/* Header — outcome + current odds */}
         <div className="mb-3 flex items-baseline justify-between">
           <div>
-            <div className="text-xs uppercase tracking-widest text-hl-subtle">
+            <div className="text-xs uppercase tracking-widest text-on-surface-muted">
               Bet on
             </div>
-            <div className="mt-0.5 text-base font-semibold text-hl-text">
+            <div className="mt-0.5 text-base font-semibold text-on-surface">
               {label}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs uppercase tracking-widest text-hl-subtle">
+            <div className="text-xs uppercase tracking-widest text-on-surface-muted">
               Current odds
             </div>
             <div
               className={clsx(
                 'mt-0.5 font-mono text-lg font-semibold',
-                probPct === null ? 'text-hl-subtle' : 'text-hl-mint',
+                probPct === null ? 'text-on-surface-muted' : 'text-primary',
               )}
             >
               {probPct === null ? '—' : `${probPct.toFixed(1)}%`}
@@ -340,44 +340,76 @@ export function SimpleTradeWidget({
         {holding && (
           <Link
             href="/portfolio"
-            className="mb-2 block rounded-lg border border-hl-mint/40 bg-hl-mint/10 px-2.5 py-1.5 text-[11px] text-hl-text hover:bg-hl-mint/15"
+            className="mb-2 block rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-[11px] text-on-surface hover:bg-primary/15"
           >
-            <span className="text-hl-subtle">You hold</span>{' '}
-            <strong className="text-hl-mint">{holding.shares} shares</strong>
+            <span className="text-on-surface-muted">You hold</span>{' '}
+            <strong className="text-primary">{holding.shares} shares</strong>
             {bidPx !== null && (
-              <span className="text-hl-subtle"> · now ${(holding.shares * bidPx).toFixed(2)}</span>
+              <span className="text-on-surface-muted"> · now ${(holding.shares * bidPx).toFixed(2)}</span>
             )}
-            <span className="float-right text-hl-mint">Portfolio →</span>
+            <span className="float-right text-primary">Portfolio →</span>
           </Link>
         )}
 
         {/* Amount input + Max */}
-        <div className="space-y-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-hl-subtle">
-              Amount (USD)
+        <div className="space-y-3">
+          {/* W-10 — Big-number amount input (토스 DNA). 사용자 시각이 숫자에
+              집중. `$` prefix 가 input 좌측에, mono+tnum 으로 column align. */}
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">
+              Amount
             </span>
-            <div className="flex gap-2">
+            <div
+              className={clsx(
+                'flex items-center gap-1 border-b-2 pb-2 transition-colors',
+                overLiquidity
+                  ? 'border-accent-down'
+                  : usdInput
+                    ? 'border-primary'
+                    : 'border-divider',
+              )}
+            >
+              <span
+                className={clsx(
+                  'mono text-big-number-md font-bold tabular-nums leading-none',
+                  overLiquidity ? 'text-accent-down' : 'text-on-surface-muted',
+                )}
+              >
+                $
+              </span>
               <input
                 value={usdInput}
                 onChange={(e) => setUsdInput(e.target.value)}
-                placeholder="$"
+                placeholder="0"
                 inputMode="decimal"
+                aria-label="Bet amount in USD"
                 className={clsx(
-                  'w-full rounded-lg border bg-hl-bg px-2 py-1.5 font-mono text-sm focus:outline-none',
-                  overLiquidity
-                    ? 'border-mainnet text-mainnet focus:border-mainnet'
-                    : 'border-hl-border text-hl-text focus:border-hl-mint',
+                  'mono flex-1 bg-transparent text-big-number-md font-bold tabular-nums leading-none focus:outline-none placeholder:text-on-surface-subtle',
+                  overLiquidity ? 'text-accent-down' : 'text-on-surface',
                 )}
               />
               <button
                 type="button"
                 onClick={() => setUsdInput(maxUsd > 0 ? String(maxUsd.toFixed(2)) : '')}
                 disabled={maxUsd <= 0}
-                className="rounded-lg border border-hl-border bg-hl-bg px-3 py-1.5 text-xs font-semibold text-hl-text hover:border-hl-mint disabled:opacity-40"
+                className="shrink-0 rounded-full bg-surface px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-on-surface-muted hover:text-on-surface disabled:opacity-40"
               >
                 Max
               </button>
+            </div>
+            {/* Quick-amount chips (토스 패턴). 4개 preset 으로 thumb 친화. */}
+            <div className="flex gap-2">
+              {[10, 25, 50, 100].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => setUsdInput(String(amt))}
+                  disabled={maxUsd > 0 && amt > maxUsd}
+                  className="flex-1 rounded-md bg-surface px-2 py-1.5 text-xs font-semibold text-on-surface-muted hover:bg-surface-overlay hover:text-on-surface disabled:opacity-40"
+                >
+                  ${amt}
+                </button>
+              ))}
             </div>
           </label>
 
@@ -385,7 +417,7 @@ export function SimpleTradeWidget({
           <div
             className={clsx(
               'text-[11px]',
-              overLiquidity ? 'text-mainnet font-semibold' : 'text-hl-subtle',
+              overLiquidity ? 'text-accent-down font-semibold' : 'text-on-surface-muted',
             )}
           >
             {bookLoading
@@ -403,23 +435,23 @@ export function SimpleTradeWidget({
 
           {/* Payout preview */}
           {cappedUsd > 0 && askPx && previewContracts > 0 && (
-            <div className="rounded-xl border border-hl-mint/30 bg-hl-mint/5 p-2 text-[11px] text-hl-text">
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-2 text-[11px] text-on-surface">
               <div>
                 Spend{' '}
-                <strong className="text-hl-mint">${actualSpendUsd.toFixed(2)}</strong>{' '}
+                <strong className="text-primary">${actualSpendUsd.toFixed(2)}</strong>{' '}
                 → {previewContracts} shares
                 {' '}
-                <span className="text-hl-subtle">
+                <span className="text-on-surface-muted">
                   · avg fill {(avgFillPx * 100).toFixed(1)}%
                   {levelsTouched > 1 && ` across ${levelsTouched} levels`}
                 </span>
               </div>
               <div>
                 Wins{' '}
-                <strong className="text-hl-mint">${previewPayout.toFixed(2)}</strong>{' '}
+                <strong className="text-primary">${previewPayout.toFixed(2)}</strong>{' '}
                 if {label} wins
                 {overLiquidity && (
-                  <span className="text-mainnet font-semibold">
+                  <span className="text-accent-down font-semibold">
                     {' '}
                     (capped from ${usdNum.toFixed(2)} → ${maxUsd.toFixed(2)} total ask)
                   </span>
@@ -429,33 +461,37 @@ export function SimpleTradeWidget({
           )}
 
           {err && (
-            <div className="rounded-xl border border-mainnet/40 bg-mainnet/10 px-3 py-2 text-xs text-mainnet">
+            <div className="rounded-xl border border-accent-down/40 bg-accent-down/10 px-3 py-2 text-xs text-accent-down">
               {err}
             </div>
           )}
           {result !== null && (
-            <details className="rounded-xl border border-hl-border bg-hl-bg p-2 text-[11px] text-hl-subtle">
+            <details className="rounded-xl border border-divider bg-surface p-2 text-[11px] text-on-surface-muted">
               <summary className="cursor-pointer">HF response</summary>
-              <pre className="mt-1 overflow-x-auto text-[10px] text-hl-text">
+              <pre className="mt-1 overflow-x-auto text-[10px] text-on-surface">
                 {JSON.stringify(result, null, 2)}
               </pre>
             </details>
           )}
 
+          {/* W-10 — Primary CTA solid mint (DESIGN.md button-primary). 모바일
+              thumb 친화 (min-h 44px = py-md + text-button 충분). full-width
+              hero CTA + bold uppercase. */}
           <button
             type="button"
             onClick={() => void onSubmit()}
             disabled={busy || !usdValid || !askPx || belowMin}
             className={clsx(
-              'mt-1 w-full rounded-full bg-hl-mint/15 px-3 py-2.5 text-sm font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint hover:bg-hl-mint/25',
-              (busy || !usdValid || !askPx || belowMin) && 'cursor-not-allowed opacity-60',
+              'mt-2 w-full rounded-md bg-primary px-base py-md text-button font-bold text-on-primary transition-colors hover:bg-primary-bright',
+              (busy || !usdValid || !askPx || belowMin) &&
+                'cursor-not-allowed bg-divider text-on-surface-disabled hover:bg-divider',
             )}
           >
             {busy
               ? 'Placing bet…'
               : belowMin
                 ? `Min $${minUsd.toFixed(2)}`
-                : `Bet on ${label}`}
+                : `Bet $${usdValid && usdNum > 0 ? usdNum.toFixed(0) : '?'} on ${label}`}
           </button>
 
           {/* Phase K — Add to basket as a secondary action. Builds toward a
@@ -484,14 +520,14 @@ export function SimpleTradeWidget({
               }
             }}
             disabled={!askPx}
-            className="mt-1 w-full rounded-full border border-hl-border bg-hl-bg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-hl-subtle ring-1 ring-hl-border hover:text-hl-mint disabled:opacity-40"
+            className="mt-1 w-full rounded-full border border-divider bg-surface px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-on-surface-muted ring-1 ring-divider hover:text-primary disabled:opacity-40"
           >
             {isInBasket(parseOutcomeAssetKey(assetKey)?.outcomeId ?? -1, parseOutcomeAssetKey(assetKey)?.sideIdx ?? -1)
               ? '✓ In basket — update amount'
               : '+ Add to basket'}
           </button>
 
-          <div className="text-center text-[10px] text-hl-subtle">
+          <div className="text-center text-[10px] text-on-surface-muted">
             Outcome buys are <strong>fee 0</strong> on HL · IOC market at best ask + 2% slip
             <br />
             Cash out later collects HL{"'"}s {builder.feeBpsHuman} bps fee on the USDC you receive.
@@ -589,8 +625,8 @@ function Banner({
   return (
     <div
       className={clsx(
-        'rounded-2xl border bg-hl-surface/60 p-4 text-xs',
-        tone === 'warn' ? 'border-testnet/40 text-testnet' : 'border-hl-border text-hl-subtle',
+        'rounded-2xl border bg-surface-elevated/60 p-4 text-xs',
+        tone === 'warn' ? 'border-status-warn/40 text-status-warn' : 'border-divider text-on-surface-muted',
       )}
     >
       {children}

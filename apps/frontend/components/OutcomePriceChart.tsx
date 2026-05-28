@@ -27,7 +27,7 @@ function pct(p: number): string {
 export function OutcomePriceChart({ candles, side }: Props) {
   if (candles.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-6 text-center text-xs text-hl-subtle">
+      <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-6 text-center text-xs text-on-surface-muted">
         No price history for the last 24h. The outcome market may be paused or
         too new to have candles yet.
       </div>
@@ -62,18 +62,18 @@ export function OutcomePriceChart({ candles, side }: Props) {
   const up = deltaPp >= 0;
 
   return (
-    <div className="rounded-2xl border border-hl-border bg-hl-surface p-4">
+    <div className="rounded-2xl border border-divider bg-surface-elevated p-4">
       <div className="mb-2 flex items-baseline gap-3">
-        <span className="text-xs uppercase tracking-widest text-hl-subtle">
+        <span className="text-xs uppercase tracking-widest text-on-surface-muted">
           {side}
         </span>
-        <span className="font-mono text-3xl font-semibold text-hl-mint">
+        <span className="font-mono text-3xl font-semibold text-primary">
           {pct(lastClose)}
         </span>
         <span
           className={clsx(
             'font-mono text-sm',
-            up ? 'text-hl-mint' : 'text-mainnet',
+            up ? 'text-primary' : 'text-accent-down',
           )}
         >
           {up ? '+' : ''}
@@ -83,7 +83,7 @@ export function OutcomePriceChart({ candles, side }: Props) {
 
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        className="h-44 w-full text-hl-mint"
+        className="h-44 w-full text-primary"
         preserveAspectRatio="none"
         aria-hidden="true"
       >
@@ -106,7 +106,7 @@ export function OutcomePriceChart({ candles, side }: Props) {
             y={yScale(g) + 3}
             textAnchor="end"
             fontSize="9"
-            className="fill-hl-subtle/70"
+            className="fill-on-surface-muted/70"
           >
             {(g * 100).toFixed(0)}%
           </text>

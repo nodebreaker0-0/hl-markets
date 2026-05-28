@@ -56,15 +56,15 @@ export function TradeWidget(props: TradeWidgetProps) {
   return (
     <div className="space-y-2">
       <div className="flex justify-end">
-        <div className="inline-flex rounded-full border border-hl-border bg-hl-bg p-0.5 text-[10px] uppercase tracking-widest">
+        <div className="inline-flex rounded-full border border-divider bg-surface p-0.5 text-[10px] uppercase tracking-widest">
           <button
             type="button"
             onClick={() => flip('simple')}
             className={clsx(
               'rounded-full px-3 py-1 transition',
               mode === 'simple'
-                ? 'bg-hl-mint/15 text-hl-mint'
-                : 'text-hl-subtle hover:text-hl-text',
+                ? 'bg-primary/15 text-primary'
+                : 'text-on-surface-muted hover:text-on-surface',
             )}
           >
             Simple
@@ -75,8 +75,8 @@ export function TradeWidget(props: TradeWidgetProps) {
             className={clsx(
               'rounded-full px-3 py-1 transition',
               mode === 'advanced'
-                ? 'bg-hl-mint/15 text-hl-mint'
-                : 'text-hl-subtle hover:text-hl-text',
+                ? 'bg-primary/15 text-primary'
+                : 'text-on-surface-muted hover:text-on-surface',
             )}
           >
             Advanced
@@ -192,8 +192,8 @@ function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps)
 
   return (
     <>
-      <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
-        <div className="mb-3 flex items-baseline justify-between text-xs text-hl-subtle">
+      <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
+        <div className="mb-3 flex items-baseline justify-between text-xs text-on-surface-muted">
           <span className="uppercase tracking-widest">Trade · {sideName}</span>
           <code className="mono">{assetKey}</code>
         </div>
@@ -209,8 +209,8 @@ function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps)
               className={clsx(
                 'rounded-xl px-3 py-2 text-xs font-semibold ring-1',
                 isBuy
-                  ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint'
-                  : 'bg-hl-bg text-hl-subtle ring-hl-border',
+                  ? 'bg-primary/15 text-primary ring-primary'
+                  : 'bg-surface text-on-surface-muted ring-divider',
               )}
             >
               Bet
@@ -221,8 +221,8 @@ function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps)
               className={clsx(
                 'rounded-xl px-3 py-2 text-xs font-semibold ring-1',
                 !isBuy
-                  ? 'bg-mainnet/15 text-mainnet ring-mainnet'
-                  : 'bg-hl-bg text-hl-subtle ring-hl-border',
+                  ? 'bg-accent-down/15 text-accent-down ring-accent-down'
+                  : 'bg-surface text-on-surface-muted ring-divider',
               )}
             >
               Cash out
@@ -236,7 +236,7 @@ function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps)
                 onChange={(e) => setSize(e.target.value)}
                 placeholder="e.g. 10"
                 inputMode="decimal"
-                className="w-full rounded-lg border border-hl-border bg-hl-bg px-2 py-1.5 font-mono text-sm text-hl-text focus:border-hl-mint focus:outline-none"
+                className="w-full rounded-lg border border-divider bg-surface px-2 py-1.5 font-mono text-sm text-on-surface focus:border-primary focus:outline-none"
               />
             </Field>
             <Field label="price (0–1)">
@@ -245,7 +245,7 @@ function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps)
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="e.g. 0.43"
                 inputMode="decimal"
-                className="w-full rounded-lg border border-hl-border bg-hl-bg px-2 py-1.5 font-mono text-sm text-hl-text focus:border-hl-mint focus:outline-none"
+                className="w-full rounded-lg border border-divider bg-surface px-2 py-1.5 font-mono text-sm text-on-surface focus:border-primary focus:outline-none"
               />
             </Field>
           </div>
@@ -254,14 +254,14 @@ function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps)
             <select
               value={tif}
               onChange={(e) => setTif(e.target.value as 'Ioc' | 'Gtc')}
-              className="w-full rounded-lg border border-hl-border bg-hl-bg px-2 py-1.5 text-sm text-hl-text focus:border-hl-mint focus:outline-none"
+              className="w-full rounded-lg border border-divider bg-surface px-2 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
             >
               <option value="Gtc">Gtc (resting limit)</option>
               <option value="Ioc">Ioc (immediate or cancel)</option>
             </select>
           </Field>
 
-          <div className="rounded-xl border border-hl-mint/30 bg-hl-mint/5 p-2 text-[11px] text-hl-mint">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-2 text-[11px] text-primary">
             Builder fee:{' '}
             <strong>
               {builder.feeBpsHuman} bps ({(builder.feeBpsHuman / 100).toFixed(3)}%)
@@ -271,14 +271,14 @@ function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps)
           </div>
 
           {err && (
-            <div className="rounded-xl border border-mainnet/40 bg-mainnet/10 px-3 py-2 text-xs text-mainnet">
+            <div className="rounded-xl border border-accent-down/40 bg-accent-down/10 px-3 py-2 text-xs text-accent-down">
               {err}
             </div>
           )}
           {result !== null && (
-            <details className="rounded-xl border border-hl-border bg-hl-bg p-2 text-[11px] text-hl-subtle">
+            <details className="rounded-xl border border-divider bg-surface p-2 text-[11px] text-on-surface-muted">
               <summary className="cursor-pointer">HF response</summary>
-              <pre className="mt-1 overflow-x-auto text-[10px] text-hl-text">
+              <pre className="mt-1 overflow-x-auto text-[10px] text-on-surface">
                 {JSON.stringify(result, null, 2)}
               </pre>
             </details>
@@ -291,8 +291,8 @@ function AdvancedTradeWidget({ assetKey, sideName, midPrice }: TradeWidgetProps)
             className={clsx(
               'w-full rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-widest ring-1',
               isBuy
-                ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint hover:bg-hl-mint/25'
-                : 'bg-mainnet/15 text-mainnet ring-mainnet hover:bg-mainnet/25',
+                ? 'bg-primary/15 text-primary ring-primary hover:bg-primary/25'
+                : 'bg-accent-down/15 text-accent-down ring-accent-down hover:bg-accent-down/25',
               busy && 'cursor-wait opacity-60',
             )}
           >
@@ -323,8 +323,8 @@ function Banner({
   return (
     <div
       className={clsx(
-        'rounded-2xl border bg-hl-surface/60 p-4 text-xs',
-        tone === 'warn' ? 'border-testnet/40 text-testnet' : 'border-hl-border text-hl-subtle',
+        'rounded-2xl border bg-surface-elevated/60 p-4 text-xs',
+        tone === 'warn' ? 'border-status-warn/40 text-status-warn' : 'border-divider text-on-surface-muted',
       )}
     >
       {children}
@@ -343,9 +343,9 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-widest text-hl-subtle">{label}</span>
+      <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">{label}</span>
       {children}
-      {hint && <span className="text-[10px] text-hl-subtle/70">{hint}</span>}
+      {hint && <span className="text-[10px] text-on-surface-muted/70">{hint}</span>}
     </label>
   );
 }

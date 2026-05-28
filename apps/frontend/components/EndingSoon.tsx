@@ -117,10 +117,10 @@ export function EndingSoon(): JSX.Element | null {
   if (rows.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-testnet/30 bg-testnet/5 p-3">
-      <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-testnet">
+    <section className="rounded-2xl border border-status-warn/30 bg-status-warn/5 p-3">
+      <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-status-warn">
         <span>⏳ Ending soon</span>
-        <span className="text-hl-subtle">
+        <span className="text-on-surface-muted">
           {rows.length} markets · settlement edge candidates
         </span>
       </div>
@@ -128,16 +128,16 @@ export function EndingSoon(): JSX.Element | null {
         {rows.map((r) => (
           <article
             key={r.question.question}
-            className="flex flex-col gap-1 rounded-xl border border-testnet/20 bg-hl-bg/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-1 rounded-xl border border-status-warn/20 bg-surface/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
           >
             <div>
               <Link
                 href={`/q/?id=${r.question.question}`}
-                className="text-sm font-semibold text-hl-text hover:text-testnet"
+                className="text-sm font-semibold text-on-surface hover:text-status-warn"
               >
                 {r.question.name}
               </Link>
-              <div className="mt-0.5 text-[11px] text-hl-subtle">
+              <div className="mt-0.5 text-[11px] text-on-surface-muted">
                 {r.countdown}
                 {r.highConfidenceOptions.length > 0 && (
                   <>

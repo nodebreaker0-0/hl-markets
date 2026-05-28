@@ -34,18 +34,18 @@ export function Toaster(): JSX.Element {
           type="button"
           onClick={() => dismiss(t.id)}
           className={clsx(
-            'pointer-events-auto w-full max-w-sm rounded-xl border bg-hl-surface px-3 py-2 text-left text-xs shadow-lg backdrop-blur transition',
-            t.tone === 'success' && 'border-hl-mint/40 bg-hl-mint/10 text-hl-text',
-            t.tone === 'error' && 'border-mainnet/40 bg-mainnet/10 text-hl-text',
-            t.tone === 'info' && 'border-hl-border text-hl-text',
+            'pointer-events-auto w-full max-w-sm rounded-xl border bg-surface-elevated px-3 py-2 text-left text-xs shadow-lg backdrop-blur transition',
+            t.tone === 'success' && 'border-primary/40 bg-primary/10 text-on-surface',
+            t.tone === 'error' && 'border-accent-down/40 bg-accent-down/10 text-on-surface',
+            t.tone === 'info' && 'border-divider text-on-surface',
           )}
         >
           <div className="flex items-start gap-2">
             <span
               className={clsx(
                 'mt-0.5 text-sm',
-                t.tone === 'success' && 'text-hl-mint',
-                t.tone === 'error' && 'text-mainnet',
+                t.tone === 'success' && 'text-primary',
+                t.tone === 'error' && 'text-accent-down',
               )}
             >
               {t.tone === 'success' ? '✓' : t.tone === 'error' ? '✕' : 'ⓘ'}
@@ -53,7 +53,7 @@ export function Toaster(): JSX.Element {
             <div className="flex-1">
               <div className="font-semibold">{t.message}</div>
               {t.detail && (
-                <div className="mt-0.5 text-[11px] text-hl-subtle">{t.detail}</div>
+                <div className="mt-0.5 text-[11px] text-on-surface-muted">{t.detail}</div>
               )}
             </div>
           </div>

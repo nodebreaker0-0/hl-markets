@@ -49,10 +49,10 @@ export function BasketChip(): JSX.Element | null {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-hl-mint px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-hl-bg shadow-lg ring-1 ring-hl-mint/60 hover:bg-hl-mint/90"
+        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-on-primary shadow-lg ring-1 ring-primary/60 hover:bg-primary-bright"
       >
         <span>Basket</span>
-        <span className="rounded-full bg-hl-bg/30 px-1.5 py-0.5 text-[10px] text-hl-bg">
+        <span className="rounded-full bg-surface/30 px-1.5 py-0.5 text-[10px] text-surface">
           {legs.length}
         </span>
       </button>
@@ -188,26 +188,69 @@ function BasketSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
-      <div className="w-full max-w-md rounded-t-2xl border border-hl-border bg-hl-bg p-4 sm:rounded-2xl">
-        <header className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-hl-text">
-            Basket bet · {legs.length} legs
-          </h2>
+      <div className="flex w-full max-w-md flex-col rounded-t-xl bg-surface-overlay sm:rounded-xl">
+        {/* Header — DESIGN.md modal (surface-overlay + xl rounded + 24px). */}
+        <header className="flex items-center justify-between gap-3 px-lg pt-lg pb-md">
+          <div className="flex flex-col gap-px">
+            <span className="text-caption uppercase tracking-widest text-on-surface-muted">
+              Basket bet
+            </span>
+            <h2 className="text-h2 font-semibold leading-snug text-on-surface">
+              {legs.length === 0 ? 'Empty' : `${legs.length} leg${legs.length === 1 ? '' : 's'}`}
+            </h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-xs text-hl-subtle hover:text-hl-text"
+            aria-label="Close basket"
+            className="rounded-full p-2 text-on-surface-muted transition-colors hover:bg-surface-elevated hover:text-on-surface"
           >
-            Close
+            ✕
           </button>
         </header>
 
+        {/* W-11 — step indicator (visual progress: edit → review → sign).
+            현재 multi-page modal 은 아니지만 단일 sheet 안에서도 시각적 단계
+            표시. busy state 가 sign 진행, err 가 fail. */}
+        {legs.length > 0 && (
+          <div className="flex items-center gap-xs px-lg pb-sm">
+            {(['Edit', 'Review', 'Sign'] as const).map((label, i) => {
+              const active = busy ? i === 2 : err ? i === 1 : i === 0;
+              const done = busy ? i < 2 : err ? false : i < 0;
+              return (
+                <div key={label} className="flex flex-1 items-center gap-xs">
+                  <div
+                    className={clsx(
+                      'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold tabular-nums',
+                      active && 'bg-primary text-on-primary',
+                      done && 'bg-primary/50 text-on-primary',
+                      !active && !done && 'bg-divider text-on-surface-subtle',
+                    )}
+                  >
+                    {i + 1}
+                  </div>
+                  <span
+                    className={clsx(
+                      'text-[10px] uppercase tracking-widest',
+                      active ? 'text-on-surface' : 'text-on-surface-subtle',
+                    )}
+                  >
+                    {label}
+                  </span>
+                  {i < 2 && <div className="h-px flex-1 bg-divider" />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Body */}
         {legs.length === 0 ? (
-          <div className="py-8 text-center text-xs text-hl-subtle">
+          <div className="px-lg py-2xl text-center text-body-sm text-on-surface-muted">
             Basket is empty. Add legs from any market.
           </div>
         ) : (
-          <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+          <div className="max-h-[55vh] space-y-2 overflow-y-auto px-lg pb-md">
             {legs.map((l) => (
               <LegRow
                 key={l.id}
@@ -220,20 +263,27 @@ function BasketSheet({
           </div>
         )}
 
+        {/* Footer — Total intent hero + sticky CTA (DESIGN.md token).
+            모바일 한 손 thumb 친화 — bottom sticky pattern (W-15 의도 흡수). */}
         {legs.length > 0 && (
-          <>
-            <div className="mt-3 flex items-center justify-between border-t border-hl-border pt-3 text-xs">
-              <span className="text-hl-subtle">Total intent</span>
-              <span className="mono font-semibold text-hl-text">${totalUsd.toFixed(2)}</span>
+          <div className="flex flex-col gap-md border-t border-divider bg-surface-elevated px-lg py-md">
+            {/* Total intent — big-number-md hero. Polymarket "total" 시각. */}
+            <div className="flex items-baseline justify-between">
+              <span className="text-caption uppercase tracking-widest text-on-surface-muted">
+                Total intent
+              </span>
+              <span className="mono text-big-number-md font-bold leading-none text-on-surface tabular-nums">
+                ${totalUsd.toFixed(2)}
+              </span>
             </div>
 
             {err && (
-              <div className="mt-2 rounded-lg border border-mainnet/40 bg-mainnet/10 px-2 py-1 text-[11px] text-mainnet">
+              <div className="rounded-md bg-accent-down/12 px-md py-sm text-body-sm text-accent-down">
                 {err}
               </div>
             )}
 
-            <div className="mt-3 flex gap-2">
+            <div className="flex gap-sm">
               <button
                 type="button"
                 onClick={() => {
@@ -241,26 +291,32 @@ function BasketSheet({
                   onChange([]);
                 }}
                 disabled={busy}
-                className="flex-1 rounded-full border border-hl-border bg-hl-surface px-3 py-2 text-xs text-hl-subtle hover:text-hl-text"
+                className="rounded-md bg-surface px-base py-md text-button font-semibold text-on-surface-muted transition-colors hover:bg-surface-elevated hover:text-on-surface disabled:opacity-40"
               >
-                Clear all
+                Clear
               </button>
+              {/* Primary solid mint — DESIGN.md button-primary, full-width thumb-friendly */}
               <button
                 type="button"
                 onClick={() => void onPlace()}
                 disabled={busy || !session}
                 className={clsx(
-                  'flex-[2] rounded-full bg-hl-mint/15 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint',
-                  busy && 'cursor-wait opacity-60',
+                  'flex-1 rounded-md bg-primary px-base py-md text-button font-bold text-on-primary transition-colors hover:bg-primary-bright',
+                  (busy || !session) && 'cursor-not-allowed bg-divider text-on-surface-disabled hover:bg-divider',
                 )}
               >
-                {busy ? 'Placing…' : `Place ${legs.length}-leg basket`}
+                {busy
+                  ? 'Signing & placing…'
+                  : !session
+                    ? 'Connect wallet'
+                    : `Place ${legs.length}-leg basket · $${totalUsd.toFixed(0)}`}
               </button>
             </div>
-            <div className="mt-2 text-center text-[10px] text-hl-subtle">
-              One agent signature · each leg IOC at best ask + 2% slip · builder fee on sell only
+
+            <div className="text-center text-[10px] text-on-surface-muted">
+              One agent signature · IOC at best ask + 2% slip · builder fee on sell only
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -284,18 +340,18 @@ function LegRow({
   const payoutPreview = sharesPreview;
 
   return (
-    <div className="rounded-xl border border-hl-border bg-hl-surface p-2.5">
+    <div className="rounded-xl border border-divider bg-surface-elevated p-2.5">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-sm font-semibold text-hl-text">
+          <div className="text-sm font-semibold text-on-surface">
             {leg.outcomeName}
-            <span className="ml-1 text-xs font-normal text-hl-subtle">· {leg.sideName}</span>
+            <span className="ml-1 text-xs font-normal text-on-surface-muted">· {leg.sideName}</span>
           </div>
           {leg.questionTitle && (
-            <div className="text-[10px] text-hl-subtle/70">{leg.questionTitle}</div>
+            <div className="text-[10px] text-on-surface-muted/70">{leg.questionTitle}</div>
           )}
           {ask !== null && (
-            <div className="mt-0.5 text-[10px] text-hl-subtle">
+            <div className="mt-0.5 text-[10px] text-on-surface-muted">
               Current ask: {(ask * 100).toFixed(1)}%
             </div>
           )}
@@ -303,13 +359,13 @@ function LegRow({
         <button
           type="button"
           onClick={onRemove}
-          className="text-[10px] text-hl-subtle hover:text-mainnet"
+          className="text-[10px] text-on-surface-muted hover:text-accent-down"
         >
           remove
         </button>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-widest text-hl-subtle">USD</span>
+        <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">USD</span>
         <input
           value={String(leg.usdAmount)}
           onChange={(e) => {
@@ -317,10 +373,10 @@ function LegRow({
             if (Number.isFinite(v)) onUsdChange(v);
           }}
           inputMode="decimal"
-          className="w-24 rounded border border-hl-border bg-hl-bg px-2 py-1 font-mono text-sm text-hl-text focus:border-hl-mint focus:outline-none"
+          className="w-24 rounded border border-divider bg-surface px-2 py-1 font-mono text-sm text-on-surface focus:border-primary focus:outline-none"
         />
         {sharesPreview > 0 && (
-          <span className="text-[11px] text-hl-subtle">
+          <span className="text-[11px] text-on-surface-muted">
             → {sharesPreview} shares · wins ${payoutPreview.toFixed(2)}
           </span>
         )}

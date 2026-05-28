@@ -164,8 +164,8 @@ function OutcomeInner() {
   if (!meta) {
     return (
       <Fallback>
-        Outcome <strong className="text-hl-text">#{outcomeId}</strong> not found on{' '}
-        <strong className="text-hl-text">{network}</strong>. It may not be indexed yet, or the id
+        Outcome <strong className="text-on-surface">#{outcomeId}</strong> not found on{' '}
+        <strong className="text-on-surface">{network}</strong>. It may not be indexed yet, or the id
         is wrong.
       </Fallback>
     );
@@ -176,8 +176,8 @@ function OutcomeInner() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-center justify-between gap-3 text-xs text-hl-subtle">
-        <Link href="/" className="text-hl-mint hover:underline">
+      <div className="flex items-center justify-between gap-3 text-xs text-on-surface-muted">
+        <Link href="/" className="text-primary hover:underline">
           ← Back
         </Link>
         <div className="flex items-center gap-2">
@@ -185,8 +185,8 @@ function OutcomeInner() {
             className={clsx(
               'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ring-1',
               network === 'mainnet'
-                ? 'bg-mainnet/15 text-mainnet ring-mainnet/40'
-                : 'bg-testnet/15 text-testnet ring-testnet/40',
+                ? 'bg-accent-down/15 text-accent-down ring-accent-down/40'
+                : 'bg-status-warn/15 text-status-warn ring-status-warn/40',
             )}
           >
             {network}
@@ -195,8 +195,8 @@ function OutcomeInner() {
             className={clsx(
               'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ring-1',
               meta.status === 'trading'
-                ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint/40'
-                : 'bg-hl-surface text-hl-subtle ring-hl-border',
+                ? 'bg-primary/15 text-primary ring-primary/40'
+                : 'bg-surface-elevated text-on-surface-muted ring-divider',
             )}
           >
             {meta.status}
@@ -205,13 +205,13 @@ function OutcomeInner() {
       </div>
 
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-hl-text sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight text-on-surface sm:text-3xl">
           {meta.name}
         </h1>
         {meta.description && (
-          <p className="text-sm text-hl-subtle">{meta.description}</p>
+          <p className="text-sm text-on-surface-muted">{meta.description}</p>
         )}
-        <p className="text-[11px] text-hl-subtle/70">
+        <p className="text-[11px] text-on-surface-muted/70">
           outcome #{meta.outcomeId} · {meta.quoteToken} quoted ·{' '}
           {meta.sideSpecs.length} sides
         </p>
@@ -229,9 +229,9 @@ function OutcomeInner() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <MiniOrderbook book={book} assetKey={currentAssetKey} />
-        <div className="rounded-2xl border border-hl-border bg-hl-surface p-4 text-xs text-hl-subtle">
+        <div className="rounded-2xl border border-divider bg-surface-elevated p-4 text-xs text-on-surface-muted">
           <div className="mb-2 uppercase tracking-widest">Now</div>
-          <dl className="space-y-1 font-mono text-[11px] text-hl-text">
+          <dl className="space-y-1 font-mono text-[11px] text-on-surface">
             <Row label="mid">
               {currentSidePct !== null ? fmtPct(currentSidePct) : '—'}
             </Row>
@@ -243,7 +243,7 @@ function OutcomeInner() {
               if (!ex) return null;
               return (
                 <Row label="expiry">
-                  <span className={ex.expired ? 'text-mainnet' : ''}>
+                  <span className={ex.expired ? 'text-accent-down' : ''}>
                     {ex.label}
                   </span>
                 </Row>
@@ -258,23 +258,23 @@ function OutcomeInner() {
             const ask = walkAsks(book);
             if (ask.size === 0) {
               return (
-                <p className="mt-3 text-[11px] text-hl-subtle">
+                <p className="mt-3 text-[11px] text-on-surface-muted">
                   No offers on this side right now.
                 </p>
               );
             }
             return (
-              <div className="mt-3 space-y-1 border-t border-hl-border pt-3 font-mono text-[11px] text-hl-text">
+              <div className="mt-3 space-y-1 border-t border-divider pt-3 font-mono text-[11px] text-on-surface">
                 <Row label="depth">
                   <strong>{fmtSize(ask.size)}</strong> shares
                 </Row>
                 <Row label="avg buy">{ask.avgPrice.toFixed(3)}</Row>
                 <Row label="cost">{fmtUsd(ask.cost)}</Row>
                 <Row label="max profit">
-                  <strong className="text-hl-mint">
+                  <strong className="text-primary">
                     +{fmtUsd(ask.maxProfit)}
                   </strong>{' '}
-                  <span className="text-hl-subtle/70">
+                  <span className="text-on-surface-muted/70">
                     if {currentSideName} wins
                   </span>
                 </Row>
@@ -286,7 +286,7 @@ function OutcomeInner() {
             href={tradeUrl(network, currentAssetKey)}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-block rounded-full bg-hl-mint/15 px-3 py-1.5 text-[11px] font-medium text-hl-mint ring-1 ring-hl-mint hover:bg-hl-mint/25"
+            className="mt-3 inline-block rounded-full bg-primary/15 px-3 py-1.5 text-[11px] font-medium text-primary ring-1 ring-primary hover:bg-primary/25"
           >
             Trade on Hyperliquid ↗
           </a>
@@ -295,11 +295,11 @@ function OutcomeInner() {
 
       {/* Governance lineage — which gov action deployed (and later settles) this market. */}
       <section className="space-y-2">
-        <h2 className="text-xs uppercase tracking-widest text-hl-subtle">
+        <h2 className="text-xs uppercase tracking-widest text-on-surface-muted">
           Governance lineage
         </h2>
         {!meta.deployGovId && !meta.settleGovId ? (
-          <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-4 text-xs text-hl-subtle">
+          <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-4 text-xs text-on-surface-muted">
             No governance link yet. Hyperliquid&apos;s public API only exposes{' '}
             <em>pending</em> governance — markets deployed before the indexer
             started observing won&apos;t have a deploy gov attached. Future
@@ -335,9 +335,9 @@ function OutcomeInner() {
 
       <ChatPanel marketKey={`o:${meta.outcomeId}`} marketTitle={meta.name} />
 
-      <details className="text-xs text-hl-subtle">
-        <summary className="cursor-pointer hover:text-hl-mint">Raw outcome JSON</summary>
-        <pre className="mt-2 overflow-x-auto rounded-xl border border-hl-border bg-hl-bg p-3 text-[11px] leading-snug text-hl-text">
+      <details className="text-xs text-on-surface-muted">
+        <summary className="cursor-pointer hover:text-primary">Raw outcome JSON</summary>
+        <pre className="mt-2 overflow-x-auto rounded-xl border border-divider bg-surface p-3 text-[11px] leading-snug text-on-surface">
           {JSON.stringify(meta, null, 2)}
         </pre>
       </details>
@@ -370,11 +370,11 @@ function SideToggle({
             className={clsx(
               'flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-colors',
               isOn
-                ? 'border-hl-mint bg-hl-mint/10 text-hl-mint'
-                : 'border-hl-border bg-hl-surface text-hl-text hover:border-hl-mint/50',
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-divider bg-surface-elevated text-on-surface hover:border-primary/50',
             )}
           >
-            <span className="text-xs uppercase tracking-widest text-hl-subtle">
+            <span className="text-xs uppercase tracking-widest text-on-surface-muted">
               {s}
             </span>
             <span className="mt-1 font-mono text-2xl font-semibold">
@@ -390,7 +390,7 @@ function SideToggle({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-2">
-      <dt className="text-hl-subtle">{label}</dt>
+      <dt className="text-on-surface-muted">{label}</dt>
       <dd className="text-right">{children}</dd>
     </div>
   );
@@ -414,15 +414,15 @@ function GovLineageCard({
   return (
     <Link
       href={`/g?id=${govId}`}
-      className="flex flex-col gap-2 rounded-2xl border border-hl-border bg-hl-surface p-4 text-xs transition-colors hover:border-hl-mint/50"
+      className="flex flex-col gap-2 rounded-2xl border border-divider bg-surface-elevated p-4 text-xs transition-colors hover:border-primary/50"
     >
       <div className="flex items-center justify-between gap-2">
         <span
           className={clsx(
             'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ring-1',
             role === 'deploy'
-              ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint/40'
-              : 'bg-mainnet/15 text-mainnet ring-mainnet/40',
+              ? 'bg-primary/15 text-primary ring-primary/40'
+              : 'bg-accent-down/15 text-accent-down ring-accent-down/40',
           )}
         >
           {role}
@@ -432,10 +432,10 @@ function GovLineageCard({
             className={clsx(
               'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ring-1',
               detail.status === 'pending'
-                ? 'bg-testnet/15 text-testnet ring-testnet/40'
+                ? 'bg-status-warn/15 text-status-warn ring-status-warn/40'
                 : detail.status === 'settled'
-                  ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint/40'
-                  : 'bg-hl-bg text-hl-subtle ring-hl-border',
+                  ? 'bg-primary/15 text-primary ring-primary/40'
+                  : 'bg-surface text-on-surface-muted ring-divider',
             )}
           >
             {detail.status}
@@ -444,16 +444,16 @@ function GovLineageCard({
       </div>
 
       {innerOp && (
-        <div className="font-mono text-sm text-hl-text">{innerOp}</div>
+        <div className="font-mono text-sm text-on-surface">{innerOp}</div>
       )}
       {!detail && (
-        <div className="text-hl-subtle">loading governance…</div>
+        <div className="text-on-surface-muted">loading governance…</div>
       )}
 
-      <div className="flex flex-col gap-0.5 text-[11px] text-hl-subtle">
+      <div className="flex flex-col gap-0.5 text-[11px] text-on-surface-muted">
         <span>
           gov{' '}
-          <code className="mono text-hl-mint">
+          <code className="mono text-primary">
             {govId.slice(0, 10)}…{govId.slice(-6)}
           </code>
         </span>
@@ -481,18 +481,18 @@ function GovLineageCard({
             )}
             <span>
               votes:{' '}
-              <strong className="text-hl-text">
+              <strong className="text-on-surface">
                 {detail.latestVotes.length}
               </strong>{' '}
               {detail.latestQuorumReached && (
-                <span className="ml-1 text-hl-mint">· quorum</span>
+                <span className="ml-1 text-primary">· quorum</span>
               )}
             </span>
           </>
         )}
       </div>
 
-      <span className="text-[10px] text-hl-mint">View governance →</span>
+      <span className="text-[10px] text-primary">View governance →</span>
     </Link>
   );
 }
@@ -500,10 +500,10 @@ function GovLineageCard({
 function Fallback({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-4 pb-12">
-      <Link href="/" className="text-xs text-hl-mint hover:underline">
+      <Link href="/" className="text-xs text-primary hover:underline">
         ← Back to list
       </Link>
-      <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-8 text-center text-sm text-hl-subtle">
+      <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-8 text-center text-sm text-on-surface-muted">
         {children}
       </div>
     </div>

@@ -124,7 +124,7 @@ function DetailInner() {
   if (!id) {
     return (
       <Fallback>
-        <p className="text-sm text-mainnet">
+        <p className="text-sm text-accent-down">
           Missing <code className="mono">id</code> in the URL.
         </p>
       </Fallback>
@@ -139,10 +139,10 @@ function DetailInner() {
   if (!item) {
     return (
       <Fallback>
-        Governance not found on <strong className="text-hl-text">{network}</strong>. Either it
+        Governance not found on <strong className="text-on-surface">{network}</strong>. Either it
         was never observed by the indexer, or the id is malformed.
         <div className="mt-3">
-          <Link href="/" className="text-hl-mint hover:underline">
+          <Link href="/" className="text-primary hover:underline">
             ← Back to list
           </Link>
         </div>
@@ -157,8 +157,8 @@ function DetailInner() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-center justify-between gap-3 text-xs text-hl-subtle">
-        <Link href="/" className="text-hl-mint hover:underline">
+      <div className="flex items-center justify-between gap-3 text-xs text-on-surface-muted">
+        <Link href="/" className="text-primary hover:underline">
           ← Back
         </Link>
         <div className="flex items-center gap-2">
@@ -166,8 +166,8 @@ function DetailInner() {
             className={clsx(
               'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ring-1',
               network === 'mainnet'
-                ? 'bg-mainnet/15 text-mainnet ring-mainnet/40'
-                : 'bg-testnet/15 text-testnet ring-testnet/40',
+                ? 'bg-accent-down/15 text-accent-down ring-accent-down/40'
+                : 'bg-status-warn/15 text-status-warn ring-status-warn/40',
             )}
           >
             {network}
@@ -179,14 +179,14 @@ function DetailInner() {
       <Renderer.Detail item={item} ctx={{ validators }} />
 
       <section>
-        <h2 className="mb-2 text-xs uppercase tracking-widest text-hl-subtle">Quorum</h2>
-        <div className="rounded-2xl border border-hl-border bg-hl-surface p-4">
+        <h2 className="mb-2 text-xs uppercase tracking-widest text-on-surface-muted">Quorum</h2>
+        <div className="rounded-2xl border border-divider bg-surface-elevated p-4">
           <QuorumBar quorum={quorum} />
-          <p className="mt-2 text-[11px] text-hl-subtle">
-            Threshold (tentative): <strong className="text-hl-text">20%</strong> stake AND{' '}
-            <strong className="text-hl-text">50%</strong> count of active validators.
+          <p className="mt-2 text-[11px] text-on-surface-muted">
+            Threshold (tentative): <strong className="text-on-surface">20%</strong> stake AND{' '}
+            <strong className="text-on-surface">50%</strong> count of active validators.
             {quorum.quorumReached && (
-              <span className="ml-2 rounded-full bg-hl-mint/15 px-2 py-0.5 text-hl-mint">
+              <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-primary">
                 quorum reached
               </span>
             )}
@@ -195,7 +195,7 @@ function DetailInner() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-xs uppercase tracking-widest text-hl-subtle">Validators</h2>
+        <h2 className="mb-2 text-xs uppercase tracking-widest text-on-surface-muted">Validators</h2>
         <VotersList
           voted={split.voted}
           notVoted={split.notVoted}
@@ -210,10 +210,10 @@ function DetailInner() {
 function Fallback({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-4 pb-12">
-      <Link href="/" className="text-xs text-hl-mint hover:underline">
+      <Link href="/" className="text-xs text-primary hover:underline">
         ← Back to list
       </Link>
-      <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-8 text-center text-sm text-hl-subtle">
+      <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-8 text-center text-sm text-on-surface-muted">
         {children}
       </div>
     </div>

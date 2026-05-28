@@ -37,14 +37,14 @@ export function ConnectButton() {
           }}
           disabled={loading}
           className={clsx(
-            'rounded-full bg-hl-mint/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint transition-colors hover:bg-hl-mint/25',
+            'rounded-full bg-primary/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary ring-1 ring-primary transition-colors hover:bg-primary/25',
             loading && 'cursor-wait opacity-60',
           )}
         >
           {loading ? 'Connecting…' : 'Connect'}
         </button>
         {err && (
-          <span className="max-w-[200px] truncate text-[10px] text-mainnet" title={err}>
+          <span className="max-w-[200px] truncate text-[10px] text-accent-down" title={err}>
             {err}
           </span>
         )}
@@ -57,7 +57,7 @@ export function ConnectButton() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-full bg-hl-mint/15 px-3 py-1.5 text-xs font-medium text-hl-mint ring-1 ring-hl-mint hover:bg-hl-mint/25"
+        className="flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1.5 text-xs font-medium text-primary ring-1 ring-primary hover:bg-primary/25"
         title={session.address}
       >
         <span className="font-mono">{shortAddr(session.address)}</span>
@@ -67,9 +67,9 @@ export function ConnectButton() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-1 w-48 overflow-hidden rounded-2xl border border-hl-border bg-hl-bg shadow-xl">
-          <div className="border-b border-hl-border px-3 py-2 text-[11px] text-hl-subtle">
-            <div className="font-mono text-hl-text">{shortAddr(session.address)}</div>
+        <div className="absolute right-0 top-full z-40 mt-1 w-48 overflow-hidden rounded-2xl border border-divider bg-surface shadow-xl">
+          <div className="border-b border-divider px-3 py-2 text-[11px] text-on-surface-muted">
+            <div className="font-mono text-on-surface">{shortAddr(session.address)}</div>
             <div className="mt-0.5">expires {new Date(session.expiresAt).toLocaleString()}</div>
           </div>
           <button
@@ -78,7 +78,7 @@ export function ConnectButton() {
               setOpen(false);
               void doSignOut();
             }}
-            className="block w-full px-3 py-2 text-left text-xs text-hl-text hover:bg-hl-surface"
+            className="block w-full px-3 py-2 text-left text-xs text-on-surface hover:bg-surface-elevated"
           >
             Sign out
           </button>

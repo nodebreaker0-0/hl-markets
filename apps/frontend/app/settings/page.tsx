@@ -98,21 +98,21 @@ export default function SettingsPage(): JSX.Element {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6">
       <SiteHeader />
 
       <header>
-        <div className="text-xs uppercase tracking-widest text-hl-subtle">Settings</div>
-        <h1 className="mt-1 text-xl font-semibold text-hl-text">AI Analyst keys</h1>
-        <p className="mt-1 text-xs text-hl-subtle">
+        <div className="text-xs uppercase tracking-widest text-on-surface-muted">Settings</div>
+        <h1 className="mt-1 text-xl font-semibold text-on-surface">AI Analyst keys</h1>
+        <p className="mt-1 text-xs text-on-surface-muted">
           Your keys are stored only in this browser (localStorage). hl-markets servers never see them. Each
           analysis is a direct browser→provider call.
         </p>
       </header>
 
-      <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
-        <div className="text-[10px] uppercase tracking-widest text-hl-subtle">Preferred provider</div>
-        <div className="mt-2 inline-flex rounded-full bg-hl-bg p-0.5 ring-1 ring-hl-border">
+      <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
+        <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">Preferred provider</div>
+        <div className="mt-2 inline-flex rounded-full bg-surface p-0.5 ring-1 ring-divider">
           {(['none', 'openai', 'anthropic'] as const).map((p) => (
             <button
               key={p}
@@ -121,8 +121,8 @@ export default function SettingsPage(): JSX.Element {
               className={clsx(
                 'rounded-full px-3 py-1 text-xs transition',
                 (keys.preferred ?? 'none') === p
-                  ? 'bg-hl-mint/15 text-hl-mint'
-                  : 'text-hl-subtle hover:text-hl-text',
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-on-surface-muted hover:text-on-surface',
               )}
             >
               {p === 'none' ? 'Disable' : p === 'openai' ? 'OpenAI' : 'Anthropic'}
@@ -176,11 +176,11 @@ export default function SettingsPage(): JSX.Element {
         helper="When set, AI Analyze fetches 5 web results before the LLM call · ~$0.00 / call on dev tier"
       />
 
-      <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
-        <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+      <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
+        <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
           Domain specialist data (optional · Phase T)
         </div>
-        <p className="mt-1 text-xs text-hl-subtle">
+        <p className="mt-1 text-xs text-on-surface-muted">
           AI Basket Discovery automatically calls these APIs for each candidate
           when their key is set. Crypto uses CoinGecko (no key required).
         </p>
@@ -237,9 +237,9 @@ export default function SettingsPage(): JSX.Element {
         helper="Free tier: 60 calls/min · used for weather-bet outcomes"
       />
 
-      <section className="rounded-2xl border border-mainnet/30 bg-mainnet/5 p-4 text-xs text-hl-text">
-        <div className="font-semibold text-mainnet">⚠ Privacy note</div>
-        <p className="mt-1 text-hl-subtle">
+      <section className="rounded-2xl border border-accent-down/30 bg-accent-down/5 p-4 text-xs text-on-surface">
+        <div className="font-semibold text-accent-down">⚠ Privacy note</div>
+        <p className="mt-1 text-on-surface-muted">
           Each AI Analyze click ships your outcome metadata + your API key directly to the provider you chose.
           Our backend (<code className="mono">hl-markets-api</code>) does not log or proxy these requests. Keys
           live only in this browser&apos;s localStorage. Browser XSS / extension hijack risks apply — the same risk
@@ -252,7 +252,7 @@ export default function SettingsPage(): JSX.Element {
         <button
           type="button"
           onClick={onClearAll}
-          className="rounded-full border border-mainnet/40 bg-mainnet/10 px-4 py-2 text-xs font-semibold text-mainnet hover:bg-mainnet/15"
+          className="rounded-full border border-accent-down/40 bg-accent-down/10 px-4 py-2 text-xs font-semibold text-accent-down hover:bg-accent-down/15"
         >
           Clear all keys
         </button>
@@ -284,10 +284,10 @@ function KeyCard({
 }): JSX.Element {
   const masked = savedKey ? `${savedKey.slice(0, 7)}…${savedKey.slice(-4)}` : 'not set';
   return (
-    <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
+    <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-hl-text">{title}</div>
-        <code className="mono text-[10px] text-hl-subtle">{masked}</code>
+        <div className="text-sm font-semibold text-on-surface">{title}</div>
+        <code className="mono text-[10px] text-on-surface-muted">{masked}</code>
       </div>
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <input
@@ -295,14 +295,14 @@ function KeyCard({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full rounded-lg border border-hl-border bg-hl-bg px-3 py-2 font-mono text-xs text-hl-text focus:border-hl-mint focus:outline-none"
+          className="w-full rounded-lg border border-divider bg-surface px-3 py-2 font-mono text-xs text-on-surface focus:border-primary focus:outline-none"
           autoComplete="off"
         />
         <div className="flex gap-2">
           <button
             type="button"
             onClick={onSave}
-            className="rounded-full border border-hl-border bg-hl-bg px-3 py-2 text-xs font-semibold text-hl-text hover:border-hl-mint"
+            className="rounded-full border border-divider bg-surface px-3 py-2 text-xs font-semibold text-on-surface hover:border-primary"
           >
             Save
           </button>
@@ -311,7 +311,7 @@ function KeyCard({
             onClick={onTest}
             disabled={testing}
             className={clsx(
-              'rounded-full bg-hl-mint/15 px-3 py-2 text-xs font-semibold text-hl-mint ring-1 ring-hl-mint',
+              'rounded-full bg-primary/15 px-3 py-2 text-xs font-semibold text-primary ring-1 ring-primary',
               testing && 'cursor-wait opacity-60',
             )}
           >
@@ -319,7 +319,7 @@ function KeyCard({
           </button>
         </div>
       </div>
-      <div className="mt-2 text-[10px] text-hl-subtle">{helper}</div>
+      <div className="mt-2 text-[10px] text-on-surface-muted">{helper}</div>
     </section>
   );
 }

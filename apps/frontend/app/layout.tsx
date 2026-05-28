@@ -45,8 +45,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {IS_PROD && <meta httpEquiv="Content-Security-Policy" content={CSP_PROD} />}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
-      <body className="min-h-screen bg-hl-bg text-hl-text antialiased font-sans">
-        <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">{children}</div>
+      <body className="min-h-screen bg-surface text-on-surface antialiased font-sans">
+        <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6">{children}</div>
         <Toaster />
         <BasketChip />
         <AutobetTicker />

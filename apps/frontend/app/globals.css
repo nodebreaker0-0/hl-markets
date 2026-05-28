@@ -2,41 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Phase W — DESIGN.md v1 정합 globals.
+ * - Color value 는 DESIGN.md 의 token 만 사용 (Constitution D-I). 여기 hex 는
+ *   CSS variable bridge 용 — `tailwind.theme.generated.json` 과 정확히 일치.
+ * - 다국어 fallback chain Inter + Noto Sans KR/JP/SC (D-007).
+ * - Focus ring global (D-013, orphaned focus token 의 사용처).
+ * - prefers-reduced-motion respect (D-VII).
+ */
+
 :root {
   color-scheme: dark;
-  --hl-bg: #0f1a1f;
-  --hl-mint: #97fce4;
+  /* DESIGN.md v1 토큰 mirror — JS 가 :root var 로 직접 접근하는 경로 (예:
+   * tap-highlight-color, focus ring, scrollbar) 위한 CSS var. */
+  --color-surface: #0a0e14;
+  --color-surface-elevated: #11151c;
+  --color-surface-overlay: #1a2029;
+  --color-primary: #7dffd0;
+  --color-primary-bright: #9fffe0;
+  --color-divider: #1f2933;
+  --color-focus: #9fffe0;
+  --color-on-surface: #e5e9f0;
+  --color-on-surface-muted: #9aa4b2;
+  --color-on-surface-subtle: #5c6470;
 }
 
 html,
 body {
-  background-color: var(--hl-bg);
-  /* Avoid iOS rubber-band background flash + prevent horizontal overflow on small screens. */
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  /* 다국어 fallback chain (D-007). Inter 가 변수 폰트 — KR/JP/ZH glyph 가
+   * 적으니까 Noto Sans 시리즈가 fallback 핵심. */
+  font-family:
+    'Inter',
+    'Noto Sans KR',
+    'Noto Sans JP',
+    'Noto Sans SC',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  /* iOS rubber-band background flash 방지 + 모바일 가로 overflow 방지 */
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
 }
 
+/* Monospace utility (`.mono`) — DESIGN.md typography.mono-* 와 동일 chain +
+ * tnum (tabular-num) 강제로 column align. */
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family:
+    'JetBrains Mono',
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  font-feature-settings: 'tnum' 1;
 }
 
-/* Subtle scroll bar, dark theme */
+/* Subtle scrollbar — surface color 시리즈 사용 (D-IV 단일 source) */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #142026;
+  background: var(--color-surface-elevated);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e2c33;
+  background: var(--color-divider);
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2a3a42;
+  background: var(--color-on-surface-subtle);
 }
 
-/* Tap highlight on touch devices: subtle mint, not the default ugly blue */
+/* Tap highlight — primary mint at 12% alpha (button-up bg 와 동일 합성).
+ * mint hex 는 DESIGN.md primary `#7DFFD0` = rgb(125, 255, 208). */
 * {
-  -webkit-tap-highlight-color: rgba(151, 252, 228, 0.12);
+  -webkit-tap-highlight-color: rgba(125, 255, 208, 0.12);
+}
+
+/* Focus ring global (D-013) — :focus-visible 만 (mouse click 시 표시 X).
+ * Accessibility default ON (D-VII). */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* prefers-reduced-motion respect — 사용자 OS 설정 honor (D-VII).
+ * 모든 transition / animation duration 0.01ms 강제. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

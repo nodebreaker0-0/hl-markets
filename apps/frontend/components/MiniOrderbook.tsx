@@ -1,5 +1,5 @@
 // 5-level bids vs asks readout for one outcome side asset.
-// Bids are tinted hl-mint (buy-side), asks are tinted mainnet red (sell-side)
+// Bids are tinted primary (buy-side), asks are tinted mainnet red (sell-side)
 // — matching the Polymarket convention of "more demand on Yes" cues.
 
 'use client';
@@ -30,7 +30,7 @@ function fmtSz(sz: string): string {
 export function MiniOrderbook({ book, assetKey }: Props) {
   if (!book) {
     return (
-      <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-4 text-xs text-hl-subtle">
+      <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-4 text-xs text-on-surface-muted">
         Loading book for <code className="mono">{assetKey}</code>…
       </div>
     );
@@ -40,47 +40,47 @@ export function MiniOrderbook({ book, assetKey }: Props) {
   const asksTop = asks.slice(0, DEPTH);
 
   return (
-    <div className="rounded-2xl border border-hl-border bg-hl-surface p-4">
-      <div className="mb-2 flex items-baseline justify-between text-xs text-hl-subtle">
+    <div className="rounded-2xl border border-divider bg-surface-elevated p-4">
+      <div className="mb-2 flex items-baseline justify-between text-xs text-on-surface-muted">
         <span className="uppercase tracking-widest">Order book</span>
         <code className="mono text-[11px]">{assetKey}</code>
       </div>
 
       <div className="grid grid-cols-2 gap-3 font-mono text-[11px]">
         <div className="space-y-1">
-          <div className="flex justify-between text-[10px] uppercase tracking-widest text-hl-subtle">
+          <div className="flex justify-between text-[10px] uppercase tracking-widest text-on-surface-muted">
             <span>bid</span>
             <span>size</span>
           </div>
           {bidsTop.length === 0 && (
-            <div className="rounded bg-hl-bg/50 px-2 py-1 text-hl-subtle">—</div>
+            <div className="rounded bg-surface/50 px-2 py-1 text-on-surface-muted">—</div>
           )}
           {bidsTop.map((b) => (
             <div
               key={b.px}
-              className="flex justify-between rounded bg-hl-mint/10 px-2 py-1 text-hl-mint"
+              className="flex justify-between rounded bg-primary/10 px-2 py-1 text-primary"
             >
               <span>{fmtPx(b.px)}</span>
-              <span className="text-hl-mint/80">{fmtSz(b.sz)}</span>
+              <span className="text-primary/80">{fmtSz(b.sz)}</span>
             </div>
           ))}
         </div>
 
         <div className="space-y-1">
-          <div className="flex justify-between text-[10px] uppercase tracking-widest text-hl-subtle">
+          <div className="flex justify-between text-[10px] uppercase tracking-widest text-on-surface-muted">
             <span>ask</span>
             <span>size</span>
           </div>
           {asksTop.length === 0 && (
-            <div className="rounded bg-hl-bg/50 px-2 py-1 text-hl-subtle">—</div>
+            <div className="rounded bg-surface/50 px-2 py-1 text-on-surface-muted">—</div>
           )}
           {asksTop.map((a) => (
             <div
               key={a.px}
-              className="flex justify-between rounded bg-mainnet/10 px-2 py-1 text-mainnet"
+              className="flex justify-between rounded bg-accent-down/10 px-2 py-1 text-accent-down"
             >
               <span>{fmtPx(a.px)}</span>
-              <span className="text-mainnet/80">{fmtSz(a.sz)}</span>
+              <span className="text-accent-down/80">{fmtSz(a.sz)}</span>
             </div>
           ))}
         </div>

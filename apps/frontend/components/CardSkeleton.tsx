@@ -20,15 +20,15 @@ function Bar({ pct, label }: { pct: number; label: string }) {
   const clamped = Math.max(0, Math.min(1, pct));
   return (
     <div>
-      <div className="mb-1 flex items-baseline justify-between text-[10px] uppercase tracking-wider text-hl-subtle">
+      <div className="mb-1 flex items-baseline justify-between text-[10px] uppercase tracking-wider text-on-surface-muted">
         <span>{label}</span>
-        <span className="font-mono text-hl-text">{(clamped * 100).toFixed(1)}%</span>
+        <span className="font-mono text-on-surface">{(clamped * 100).toFixed(1)}%</span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-hl-bg">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface">
         <div
           className={clsx(
             'h-full rounded-full transition-all',
-            clamped >= 0.5 ? 'bg-hl-mint' : 'bg-hl-mint-dim/70',
+            clamped >= 0.5 ? 'bg-primary' : 'bg-primary-dim/70',
           )}
           style={{ width: `${clamped * 100}%` }}
         />
@@ -51,18 +51,18 @@ export function CardSkeleton({
     variant === 'outcome' ? 'Outcome' : variant === 'delisting' ? 'Delisting' : 'Unknown';
   const variantColor =
     variant === 'outcome'
-      ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint/40'
+      ? 'bg-primary/15 text-primary ring-primary/40'
       : variant === 'delisting'
-        ? 'bg-mainnet/15 text-mainnet ring-mainnet/40'
-        : 'bg-testnet/15 text-testnet ring-testnet/40';
+        ? 'bg-accent-down/15 text-accent-down ring-accent-down/40'
+        : 'bg-status-warn/15 text-status-warn ring-status-warn/40';
 
   return (
     <article
       className={clsx(
-        'group relative flex flex-col gap-4 rounded-2xl border border-hl-border bg-hl-surface p-5 shadow-card transition-all',
-        'hover:-translate-y-0.5 hover:bg-hl-surface hover:shadow-card-hover',
+        'group relative flex flex-col gap-4 rounded-2xl border border-divider bg-surface-elevated p-5 shadow-card transition-all',
+        'hover:-translate-y-0.5 hover:bg-surface-elevated hover:shadow-card-hover',
         'cursor-pointer',
-        network === 'mainnet' ? 'hover:ring-1 hover:ring-mainnet/40' : 'hover:ring-1 hover:ring-testnet/40',
+        network === 'mainnet' ? 'hover:ring-1 hover:ring-accent-down/40' : 'hover:ring-1 hover:ring-status-warn/40',
       )}
     >
       <div className="flex items-center justify-between gap-2">
@@ -74,14 +74,14 @@ export function CardSkeleton({
         >
           {variantLabel}
         </span>
-        <span className="text-[10px] uppercase tracking-widest text-hl-subtle">
+        <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">
           {network} · expires in {expiresIn}
         </span>
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold leading-snug text-hl-text">{title}</h3>
-        <p className="mt-1 line-clamp-2 text-sm text-hl-subtle">{detail}</p>
+        <h3 className="text-lg font-semibold leading-snug text-on-surface">{title}</h3>
+        <p className="mt-1 line-clamp-2 text-sm text-on-surface-muted">{detail}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -89,14 +89,14 @@ export function CardSkeleton({
         <Bar pct={countPct} label="count · 50%" />
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-hl-border pt-3 text-xs text-hl-subtle">
+      <div className="flex items-center justify-between gap-2 border-t border-divider pt-3 text-xs text-on-surface-muted">
         <div className="min-w-0 truncate">
-          <span className="text-hl-text">{votedNames.length}</span> voted
+          <span className="text-on-surface">{votedNames.length}</span> voted
           {votedNames.length > 0 && (
-            <span className="ml-1 truncate text-hl-subtle/80">· {votedNames.slice(0, 3).join(', ')}{votedNames.length > 3 ? ` +${votedNames.length - 3}` : ''}</span>
+            <span className="ml-1 truncate text-on-surface-muted/80">· {votedNames.slice(0, 3).join(', ')}{votedNames.length > 3 ? ` +${votedNames.length - 3}` : ''}</span>
           )}
         </div>
-        <span className="shrink-0 text-hl-mint opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100">
           Open →
         </span>
       </div>

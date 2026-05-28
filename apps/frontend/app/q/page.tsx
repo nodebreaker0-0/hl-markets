@@ -169,8 +169,8 @@ function QuestionInner() {
   if (!question) {
     return (
       <Fallback>
-        Question <strong className="text-hl-text">#{questionId}</strong> not found on{' '}
-        <strong className="text-hl-text">{network}</strong>.
+        Question <strong className="text-on-surface">#{questionId}</strong> not found on{' '}
+        <strong className="text-on-surface">{network}</strong>.
       </Fallback>
     );
   }
@@ -211,8 +211,8 @@ function QuestionInner() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-center justify-between gap-3 text-xs text-hl-subtle">
-        <Link href="/" className="text-hl-mint hover:underline">
+      <div className="flex items-center justify-between gap-3 text-xs text-on-surface-muted">
+        <Link href="/" className="text-primary hover:underline">
           ← Back
         </Link>
         <div className="flex items-center gap-2">
@@ -220,32 +220,32 @@ function QuestionInner() {
             className={clsx(
               'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ring-1',
               network === 'mainnet'
-                ? 'bg-mainnet/15 text-mainnet ring-mainnet/40'
-                : 'bg-testnet/15 text-testnet ring-testnet/40',
+                ? 'bg-accent-down/15 text-accent-down ring-accent-down/40'
+                : 'bg-status-warn/15 text-status-warn ring-status-warn/40',
             )}
           >
             {network}
           </span>
-          <span className="text-hl-subtle/70">
+          <span className="text-on-surface-muted/70">
             {loadedAt ? `updated ${new Date(loadedAt).toLocaleTimeString()}` : ''}
           </span>
         </div>
       </div>
 
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-hl-text sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight text-on-surface sm:text-3xl">
           {qTitle}
         </h1>
         {qTitle !== question.name && (
-          <p className="text-xs text-hl-subtle">{question.name}</p>
+          <p className="text-xs text-on-surface-muted">{question.name}</p>
         )}
-        <p className="text-[11px] text-hl-subtle/70">
+        <p className="text-[11px] text-on-surface-muted/70">
           question #{question.question} · {question.namedOutcomes.length} options · fallback
           outcome #{question.fallbackOutcome}
           {exp && (
             <>
               {' · '}
-              <span className={exp.expired ? 'text-mainnet' : 'text-hl-text'}>
+              <span className={exp.expired ? 'text-accent-down' : 'text-on-surface'}>
                 {exp.label}
               </span>
             </>
@@ -254,7 +254,7 @@ function QuestionInner() {
       </header>
 
       <section>
-        <h2 className="mb-2 text-xs uppercase tracking-widest text-hl-subtle">Options</h2>
+        <h2 className="mb-2 text-xs uppercase tracking-widest text-on-surface-muted">Options</h2>
         <div className="space-y-2">
           {options.map((opt) => {
             const on = opt.outcomeId === activeOutcomeId;
@@ -268,29 +268,29 @@ function QuestionInner() {
                 className={clsx(
                   'flex w-full flex-col gap-1.5 rounded-2xl border px-4 py-3 text-left transition-colors',
                   on
-                    ? 'border-hl-mint bg-hl-mint/10'
-                    : 'border-hl-border bg-hl-surface hover:border-hl-mint/50',
+                    ? 'border-primary bg-primary/10'
+                    : 'border-divider bg-surface-elevated hover:border-primary/50',
                 )}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="flex items-center gap-2 truncate font-medium text-hl-text">
+                  <span className="flex items-center gap-2 truncate font-medium text-on-surface">
                     <span className="truncate">{opt.name}</span>
                     {opt.outcomeId === bestUpsideId && (
                       <span
-                        className="shrink-0 rounded-full bg-hl-mint/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-hl-mint ring-1 ring-hl-mint/40"
+                        className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary ring-1 ring-primary/40"
                         title="Largest cumulative max profit across this question's options. Buying out all asks here returns the most if this option wins."
                       >
                         Best upside
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0 font-mono text-lg font-semibold text-hl-mint">
+                  <span className="shrink-0 font-mono text-lg font-semibold text-primary">
                     {pct(opt.yesPct, 1)}
                   </span>
                 </div>
-                <div className="h-1 overflow-hidden rounded-full bg-hl-bg">
+                <div className="h-1 overflow-hidden rounded-full bg-surface">
                   <div
-                    className="h-full bg-hl-mint/80 transition-all"
+                    className="h-full bg-primary/80 transition-all"
                     style={{
                       width: `${
                         opt.yesPct !== null
@@ -300,18 +300,18 @@ function QuestionInner() {
                     }}
                   />
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[10px] text-hl-subtle">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[10px] text-on-surface-muted">
                   <span>outcome #{opt.outcomeId}</span>
                   {ask && ask.size > 0 ? (
-                    <span className="font-mono text-hl-text">
+                    <span className="font-mono text-on-surface">
                       buy <strong>{fmtSize(ask.size)}</strong> @{' '}
                       {ask.avgPrice.toFixed(3)} · win{' '}
-                      <strong className="text-hl-mint">
+                      <strong className="text-primary">
                         +{fmtUsd(ask.maxProfit)}
                       </strong>
                     </span>
                   ) : (
-                    <span className="text-hl-subtle/70">no offers</span>
+                    <span className="text-on-surface-muted/70">no offers</span>
                   )}
                 </div>
               </button>
@@ -329,9 +329,9 @@ function QuestionInner() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <MiniOrderbook book={book} assetKey={activeAssetKey} />
-            <div className="rounded-2xl border border-hl-border bg-hl-surface p-4 text-xs text-hl-subtle">
+            <div className="rounded-2xl border border-divider bg-surface-elevated p-4 text-xs text-on-surface-muted">
               <div className="mb-2 uppercase tracking-widest">Selected option</div>
-              <dl className="space-y-1 font-mono text-[11px] text-hl-text">
+              <dl className="space-y-1 font-mono text-[11px] text-on-surface">
                 <Row label="name">{activeOption.name}</Row>
                 <Row label="Yes mid">{pct(activeOption.yesPct)}</Row>
                 <Row label="outcome">
@@ -344,7 +344,7 @@ function QuestionInner() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   href={`/o?id=${activeOption.outcomeId}`}
-                  className="rounded-full bg-hl-surface px-3 py-1.5 text-[11px] font-medium text-hl-text ring-1 ring-hl-border hover:border-hl-mint"
+                  className="rounded-full bg-surface-elevated px-3 py-1.5 text-[11px] font-medium text-on-surface ring-1 ring-divider hover:border-primary"
                 >
                   Outcome detail →
                 </Link>
@@ -352,7 +352,7 @@ function QuestionInner() {
                   href={tradeUrl(network, activeAssetKey)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full bg-hl-mint/15 px-3 py-1.5 text-[11px] font-medium text-hl-mint ring-1 ring-hl-mint hover:bg-hl-mint/25"
+                  className="rounded-full bg-primary/15 px-3 py-1.5 text-[11px] font-medium text-primary ring-1 ring-primary hover:bg-primary/25"
                 >
                   Trade on Hyperliquid ↗
                 </a>
@@ -364,8 +364,8 @@ function QuestionInner() {
 
       {question.description && (
         <section>
-          <h2 className="mb-2 text-xs uppercase tracking-widest text-hl-subtle">About</h2>
-          <p className="whitespace-pre-wrap rounded-2xl border border-hl-border bg-hl-surface p-4 text-sm leading-relaxed text-hl-text/90">
+          <h2 className="mb-2 text-xs uppercase tracking-widest text-on-surface-muted">About</h2>
+          <p className="whitespace-pre-wrap rounded-2xl border border-divider bg-surface-elevated p-4 text-sm leading-relaxed text-on-surface/90">
             {question.description}
           </p>
         </section>
@@ -397,9 +397,9 @@ function QuestionInner() {
 
       <ChatPanel marketKey={`q:${questionId}`} marketTitle={qTitle} />
 
-      <details className="text-xs text-hl-subtle">
-        <summary className="cursor-pointer hover:text-hl-mint">Raw question JSON</summary>
-        <pre className="mt-2 overflow-x-auto rounded-xl border border-hl-border bg-hl-bg p-3 text-[11px] leading-snug text-hl-text">
+      <details className="text-xs text-on-surface-muted">
+        <summary className="cursor-pointer hover:text-primary">Raw question JSON</summary>
+        <pre className="mt-2 overflow-x-auto rounded-xl border border-divider bg-surface p-3 text-[11px] leading-snug text-on-surface">
           {JSON.stringify(question, null, 2)}
         </pre>
       </details>
@@ -410,7 +410,7 @@ function QuestionInner() {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-2">
-      <dt className="text-hl-subtle">{label}</dt>
+      <dt className="text-on-surface-muted">{label}</dt>
       <dd className="text-right">{children}</dd>
     </div>
   );
@@ -419,10 +419,10 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function Fallback({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-4 pb-12">
-      <Link href="/" className="text-xs text-hl-mint hover:underline">
+      <Link href="/" className="text-xs text-primary hover:underline">
         ← Back to list
       </Link>
-      <div className="rounded-2xl border border-dashed border-hl-border bg-hl-surface/50 p-8 text-center text-sm text-hl-subtle">
+      <div className="rounded-2xl border border-dashed border-divider bg-surface-elevated/50 p-8 text-center text-sm text-on-surface-muted">
         {children}
       </div>
     </div>

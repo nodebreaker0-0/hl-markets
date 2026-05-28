@@ -14,7 +14,7 @@ export interface NetworkTabsProps {
 
 export function NetworkTabs({ value, onChange }: NetworkTabsProps) {
   return (
-    <div className="inline-flex w-full rounded-full bg-hl-surface p-1 ring-1 ring-hl-border sm:w-auto">
+    <div className="inline-flex w-full rounded-full bg-surface-elevated p-1 ring-1 ring-divider sm:w-auto">
       <button
         type="button"
         onClick={() => onChange('testnet')}
@@ -22,8 +22,8 @@ export function NetworkTabs({ value, onChange }: NetworkTabsProps) {
         className={clsx(
           'flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5',
           value === 'testnet'
-            ? 'bg-testnet/20 text-testnet ring-1 ring-testnet'
-            : 'text-hl-subtle hover:text-hl-text',
+            ? 'bg-status-warn/20 text-status-warn ring-1 ring-status-warn'
+            : 'text-on-surface-muted hover:text-on-surface',
         )}
       >
         Testnet
@@ -35,8 +35,8 @@ export function NetworkTabs({ value, onChange }: NetworkTabsProps) {
         className={clsx(
           'flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5',
           value === 'mainnet'
-            ? 'bg-mainnet/20 text-mainnet ring-1 ring-mainnet'
-            : 'text-hl-subtle hover:text-hl-text',
+            ? 'bg-accent-down/20 text-accent-down ring-1 ring-accent-down'
+            : 'text-on-surface-muted hover:text-on-surface',
         )}
       >
         Mainnet
