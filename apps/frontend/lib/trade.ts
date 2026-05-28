@@ -294,6 +294,103 @@ export async function placeMarketBuy(args: PlaceMarketBuyArgs): Promise<unknown>
   return submitForward({ address: args.address, action });
 }
 
+// ---- Phase K — multi-leg basket bet -------------------------------------
+
+export interface BasketLegInput {
+  assetId: number;
+  usdAmount: number;
+  bestAskPx: number;
+  bestAskSz: number;
+  bestBidPx: number;
+  asks: { px: number; sz: number }[];
+  /** Human label for toast / error context (e.g. "France · Yes"). */
+  label: string;
+}
+
+export interface PlaceBasketBetArgs extends SignAndSendArgs {
+  legs: BasketLegInput[];
+  slippagePct?: number;
+}
+
+export interface BasketLegResolved {
+  /** Original input label. */
+  label: string;
+  /** Encoded order leg sent to HF. */
+  order: OrderLeg;
+  /** Estimated spend in USDC. */
+  spendUsd: number;
+}
+
+/** Build one HL `order` action containing every basket leg. The agent
+ *  privkey signs the whole envelope; HL fills each leg independently. The
+ *  builder field is attached ONCE — applies to all legs (HL design). */
+export async function placeBasketBet(args: PlaceBasketBetArgs): Promise<{
+  resolved: BasketLegResolved[];
+  response: unknown;
+}> {
+  const builder = getBuilderConfig();
+  if (!builder.configured) {
+    throw new Error('Builder not configured for this network.');
+  }
+  if (args.legs.length === 0) {
+    throw new Error('Empty basket.');
+  }
+  const slip = args.slippagePct ?? 2;
+
+  const resolved: BasketLegResolved[] = [];
+  const orders: OrderLeg[] = [];
+
+  for (const leg of args.legs) {
+    if (leg.bestAskPx <= 0 || leg.bestAskSz <= 0) {
+      throw new Error(`${leg.label}: no asks right now — drop or wait.`);
+    }
+    if (leg.bestBidPx <= 0) {
+      throw new Error(`${leg.label}: no bids — HL $10 floor unreachable.`);
+    }
+
+    const minContractsForNotional = Math.ceil(
+      (HL_MIN_NOTIONAL_USD * NOTIONAL_BUFFER) / leg.bestBidPx,
+    );
+
+    const walk = walkAsks(leg.asks ?? [], leg.usdAmount, slip);
+    if (!walk) {
+      throw new Error(`${leg.label}: walkAsks failed (book empty?).`);
+    }
+    const contracts = Math.max(walk.contracts, minContractsForNotional);
+    const limit = Math.min(walk.worstPx * (1 + slip / 100), 0.999);
+
+    if (contracts * leg.bestBidPx < HL_MIN_NOTIONAL_USD) {
+      throw new Error(
+        `${leg.label}: notional $${(contracts * leg.bestBidPx).toFixed(2)} below HL $${HL_MIN_NOTIONAL_USD} min.`,
+      );
+    }
+
+    const order: OrderLeg = {
+      a: leg.assetId,
+      b: true,
+      p: toWire(limit),
+      s: toWire(contracts),
+      r: false,
+      t: { limit: { tif: 'Ioc' } },
+    };
+    orders.push(order);
+    resolved.push({ label: leg.label, order, spendUsd: contracts * walk.avgPx });
+  }
+
+  const action: OrderAction = {
+    type: 'order',
+    orders,
+    grouping: 'na',
+    builder: {
+      b: builder.address.toLowerCase() as `0x${string}`,
+      f: builder.feeTenthsBps,
+    },
+  };
+
+  const response = await submitForward({ address: args.address, action });
+  return { resolved, response };
+}
+
 /** Phase J.8 — Cash out (market sell at top of book).
  *
  *  Inputs:

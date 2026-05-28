@@ -39,6 +39,30 @@ export function SiteHeader() {
               Portfolio
             </Link>
           )}
+          {session && (
+            <Link
+              href="/autobet"
+              className={clsx(
+                'rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest ring-1 transition',
+                pathname === '/autobet'
+                  ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint'
+                  : 'text-hl-subtle ring-hl-border hover:text-hl-text',
+              )}
+            >
+              Auto-bet
+            </Link>
+          )}
+          <Link
+            href="/settings"
+            className={clsx(
+              'rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest ring-1 transition',
+              pathname === '/settings'
+                ? 'bg-hl-mint/15 text-hl-mint ring-hl-mint'
+                : 'text-hl-subtle ring-hl-border hover:text-hl-text',
+            )}
+          >
+            ⚙
+          </Link>
         </div>
         <div className="flex items-center gap-2">
           <span

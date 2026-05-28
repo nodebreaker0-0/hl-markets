@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { SiteHeader } from '@/components/SiteHeader';
 import { Hero } from '@/components/Hero';
+import { ArbAlerts } from '@/components/ArbAlerts';
+import { EndingSoon } from '@/components/EndingSoon';
 import { CURRENT_NETWORK, type Network } from '@/lib/network';
 import { SearchBar } from '@/components/SearchBar';
 import { GovernanceCard } from '@/components/GovernanceCard';
@@ -237,6 +239,10 @@ export default function HomePage() {
 
       <main className="space-y-6 pb-12">
         <Hero />
+
+        <ArbAlerts />
+
+        <EndingSoon />
 
         <nav className="flex shrink-0 gap-1 overflow-x-auto rounded-full bg-hl-surface p-1 ring-1 ring-hl-border self-start">
           {(['active', 'markets', 'historical'] as const).map((t) => (

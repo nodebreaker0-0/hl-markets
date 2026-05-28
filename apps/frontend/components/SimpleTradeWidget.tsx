@@ -23,6 +23,9 @@ import { loadAgent } from '@/lib/agent';
 import { pushToast } from '@/lib/toast';
 import { fetchHolding } from '@/lib/portfolio';
 import Link from 'next/link';
+import { addLeg as basketAddLeg, isInBasket } from '@/lib/basket';
+import { parseOutcomeAssetKey } from '@/lib/asset-id';
+import { AIAnalyzePanel } from '@/components/AIAnalyzePanel';
 
 interface Props {
   /** "#NNNN" asset key. */
@@ -31,6 +34,15 @@ interface Props {
   sideName: string;
   /** Optional question / outcome label (e.g. "Algeria") for the CTA copy. */
   outcomeLabel?: string;
+  /** Optional resolver text from outcomeMeta — fed straight into AI Analyze. */
+  outcomeDescription?: string;
+  /** Optional umbrella question title (for AI peer context). */
+  questionTitle?: string;
+  /** Optional peer prices in the same question (top 8). */
+  peerOutcomes?: { name: string; pct: number }[];
+  peerSumPct?: number;
+  /** Human expiry label, e.g. "expires in 138d 15h". */
+  expiry?: string;
 }
 
 /** HL refuses any order whose notional is below this dollar threshold —
@@ -38,7 +50,16 @@ interface Props {
  *  We mirror it client-side to avoid wasting a wallet signature. */
 const MIN_USD = 10;
 
-export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
+export function SimpleTradeWidget({
+  assetKey,
+  sideName,
+  outcomeLabel,
+  outcomeDescription,
+  questionTitle,
+  peerOutcomes,
+  peerSumPct,
+  expiry,
+}: Props) {
   const { session } = useSession();
   const builder = getBuilderConfig();
   const [approved, setApproved] = useState<boolean | null>(null);
@@ -437,6 +458,39 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
                 : `Bet on ${label}`}
           </button>
 
+          {/* Phase K — Add to basket as a secondary action. Builds toward a
+              multi-leg order placed in one signature from the basket sheet. */}
+          <button
+            type="button"
+            onClick={() => {
+              const parsed = parseOutcomeAssetKey(assetKey);
+              if (!parsed) return;
+              try {
+                basketAddLeg({
+                  outcomeId: parsed.outcomeId,
+                  sideIdx: parsed.sideIdx,
+                  outcomeName: outcomeLabel ?? sideName,
+                  sideName,
+                  usdAmount: usdValid && usdNum > 0 ? usdNum : 10,
+                });
+                pushToast({
+                  tone: 'success',
+                  message: `Added ${label} to basket`,
+                  detail: 'Open the basket (bottom-right) to place a multi-leg bet.',
+                  ttlMs: 3500,
+                });
+              } catch (e) {
+                pushToast({ tone: 'error', message: (e as Error).message });
+              }
+            }}
+            disabled={!askPx}
+            className="mt-1 w-full rounded-full border border-hl-border bg-hl-bg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-hl-subtle ring-1 ring-hl-border hover:text-hl-mint disabled:opacity-40"
+          >
+            {isInBasket(parseOutcomeAssetKey(assetKey)?.outcomeId ?? -1, parseOutcomeAssetKey(assetKey)?.sideIdx ?? -1)
+              ? '✓ In basket — update amount'
+              : '+ Add to basket'}
+          </button>
+
           <div className="text-center text-[10px] text-hl-subtle">
             Outcome buys are <strong>fee 0</strong> on HL · IOC market at best ask + 2% slip
             <br />
@@ -444,6 +498,30 @@ export function SimpleTradeWidget({ assetKey, sideName, outcomeLabel }: Props) {
           </div>
         </div>
       </section>
+
+      <AIAnalyzePanel
+        outcomeName={outcomeLabel ?? sideName}
+        sideName={sideName}
+        description={
+          outcomeDescription && outcomeDescription.trim().length > 0
+            ? outcomeDescription
+            : `(no resolver text provided) Market is pricing ${probPct !== null ? probPct.toFixed(1) : '—'}% for ${outcomeLabel ?? sideName}.`
+        }
+        currentPct={probPct ?? 0}
+        expiry={expiry}
+        questionTitle={questionTitle}
+        peerOutcomes={peerOutcomes}
+        peerSumPct={peerSumPct}
+        bookSummary={
+          askPx !== null && bidPx !== null
+            ? `ask ${(askPx * 100).toFixed(1)}% × ${askSz} · bid ${(bidPx * 100).toFixed(1)}% × ${book?.bestBid?.sz ?? 0} · spread ${((askPx - bidPx) * 100).toFixed(1)}pp`
+            : undefined
+        }
+        userPositionUsd={
+          holding && bidPx !== null ? holding.shares * bidPx : undefined
+        }
+        onSuggestAmount={(usd) => setUsdInput(String(usd))}
+      />
 
       <EnableTradingModal
         open={showOnboard}

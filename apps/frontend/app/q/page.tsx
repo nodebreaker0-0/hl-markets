@@ -377,6 +377,21 @@ function QuestionInner() {
           sideName={`${activeOption.name} · Yes`}
           midPrice={activeOption.yesPct}
           outcomeLabel={activeOption.name}
+          outcomeDescription={
+            outcomeMap.get(activeOption.outcomeId)?.description ?? ''
+          }
+          questionTitle={qTitle}
+          peerOutcomes={options
+            .filter((o) => o.outcomeId !== activeOption.outcomeId)
+            .map((o) => ({
+              name: o.name,
+              pct: (o.yesPct ?? 0) * 100,
+            }))
+            .filter((p) => p.pct > 0)
+            .sort((a, b) => b.pct - a.pct)
+            .slice(0, 8)}
+          peerSumPct={options.reduce((a, o) => a + (o.yesPct ?? 0), 0) * 100}
+          expiry={exp?.label ?? undefined}
         />
       )}
 

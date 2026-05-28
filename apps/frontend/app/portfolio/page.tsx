@@ -22,6 +22,7 @@ import { placeMarketSell, cancelOrder } from '@/lib/trade';
 import { outcomeAssetId, assetIdFromKey } from '@/lib/asset-id';
 import { CURRENT_NETWORK } from '@/lib/network';
 import { pushToast } from '@/lib/toast';
+import { ConcentrationCard } from '@/components/ConcentrationCard';
 
 const REFRESH_MS = 10_000;
 
@@ -97,6 +98,10 @@ export default function PortfolioPage(): JSX.Element {
         <div className="rounded-xl border border-mainnet/40 bg-mainnet/10 px-3 py-2 text-xs text-mainnet">
           {err}
         </div>
+      )}
+
+      {data && data.holdings.length >= 2 && (
+        <ConcentrationCard holdings={data.holdings} />
       )}
 
       <Section title="Holdings">

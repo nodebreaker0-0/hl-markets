@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/Toaster';
+import { BasketChip } from '@/components/BasketSheet';
+import { AutobetTicker } from '@/components/AutobetTicker';
 
 export const metadata: Metadata = {
   title: 'hl-markets — Hyperliquid governance explorer',
@@ -28,7 +30,7 @@ const BACKEND_ORIGIN = (() => {
 
 const CSP_PROD =
   "default-src 'self'; " +
-  `connect-src 'self' https://api.hyperliquid.xyz https://api.hyperliquid-testnet.xyz ${BACKEND_ORIGIN}; ` +
+  `connect-src 'self' https://api.hyperliquid.xyz https://api.hyperliquid-testnet.xyz https://api.openai.com https://api.anthropic.com https://api.tavily.com ${BACKEND_ORIGIN}; ` +
   "script-src 'self' 'unsafe-inline'; " +
   "style-src 'self' 'unsafe-inline'; " +
   "img-src 'self' data:; " +
@@ -46,6 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-hl-bg text-hl-text antialiased font-sans">
         <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">{children}</div>
         <Toaster />
+        <BasketChip />
+        <AutobetTicker />
       </body>
     </html>
   );
