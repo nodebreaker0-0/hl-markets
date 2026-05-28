@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/Toaster';
-import { BasketChip } from '@/components/BasketSheet';
 import { AutobetTicker } from '@/components/AutobetTicker';
+import { SiteShell } from '@/components/SiteShell';
 
 export const metadata: Metadata = {
   title: 'hl-markets — Hyperliquid governance explorer',
@@ -46,9 +46,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
       <body className="min-h-screen bg-surface text-on-surface antialiased font-sans">
-        <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6">{children}</div>
+        {/* Phase X — SiteShell 가 mobile bottom nav / desktop sidebar 처리.
+            기존 BasketChip floating 은 nav 의 Basket icon 으로 통합 → 제거. */}
+        <SiteShell>{children}</SiteShell>
         <Toaster />
-        <BasketChip />
         <AutobetTicker />
       </body>
     </html>

@@ -17,7 +17,6 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
-import { SiteHeader } from '@/components/SiteHeader';
 import { OutcomePriceChart } from '@/components/OutcomePriceChart';
 import { MiniOrderbook } from '@/components/MiniOrderbook';
 import {
@@ -513,12 +512,12 @@ function Fallback({ children }: { children: React.ReactNode }) {
 export default function OutcomePage() {
   return (
     <>
-      <SiteHeader />
-      <main>
+      
+      <div>
         <Suspense fallback={<Fallback>Loading…</Fallback>}>
           <OutcomeInner />
         </Suspense>
-      </main>
+      </div>
     </>
   );
 }

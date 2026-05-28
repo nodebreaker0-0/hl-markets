@@ -5,7 +5,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { SiteHeader } from '@/components/SiteHeader';
 import { Hero } from '@/components/Hero';
 import { ArbAlerts } from '@/components/ArbAlerts';
 import { EndingSoon } from '@/components/EndingSoon';
@@ -232,9 +231,9 @@ export default function HomePage() {
 
   return (
     <>
-      <SiteHeader />
+      
 
-      <main className="space-y-6 pb-12">
+      <div className="space-y-6 pb-12">
         <Hero />
 
         <ArbAlerts />
@@ -315,7 +314,7 @@ export default function HomePage() {
             </span>
           </div>
         </footer>
-      </main>
+      </div>
     </>
   );
 }

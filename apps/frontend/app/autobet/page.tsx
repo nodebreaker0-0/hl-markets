@@ -9,7 +9,6 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import Link from 'next/link';
-import { SiteHeader } from '@/components/SiteHeader';
 import { useSession } from '@/lib/use-session';
 import {
   loadAutobet,
@@ -35,9 +34,9 @@ export default function AutobetPage(): JSX.Element {
 
   if (!config || !state) {
     return (
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6">
-        <SiteHeader />
-      </main>
+      <div className="flex flex-col gap-6">
+        
+      </div>
     );
   }
 
@@ -106,8 +105,8 @@ export default function AutobetPage(): JSX.Element {
   const remainingToday = Math.max(0, config.dailyBudgetUsd - state.todaySpentUsd);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6">
-      <SiteHeader />
+    <div className="flex flex-col gap-6">
+      
 
       <header>
         <div className="text-xs uppercase tracking-widest text-on-surface-muted">Settings</div>
@@ -285,7 +284,7 @@ export default function AutobetPage(): JSX.Element {
           <Link href="/settings" className="underline">Open Settings →</Link>
         </div>
       )}
-    </main>
+    </div>
   );
 }
 

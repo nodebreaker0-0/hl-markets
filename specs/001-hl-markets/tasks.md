@@ -385,6 +385,136 @@ DESIGN.md token 만 사용 (hardcoded hex 0건) + Simple/Pro 토글 작동.
 
 ---
 
+## Phase X — AI-First UX 재설계 — in progress
+
+> Spec: `contracts/phase-x-aifirst-ux.md` (정체성 + IA + flow).
+> 정체성: "Polymarket × Robinhood × 토스 × Notion AI". 모바일 first, AI hero,
+> step page transition trade flow, bottom sheet detail.
+> Phase W 의 visual layer (DESIGN.md) 위에 IA / flow 변경.
+
+### Foundation — SiteShell + nav
+
+- [ ] **T-X-001** `components/SiteShell.tsx` — root layout. Mobile vertical
+  (header + main + BottomNav), Desktop horizontal (Sidebar + main + optional
+  RightPanel).
+- [ ] **T-X-002** `components/BottomNav.tsx` — 모바일 5 icon (Home / Discover
+  / Basket / Portfolio / Settings). active route highlight, Basket count badge.
+- [ ] **T-X-003** `components/Sidebar.tsx` — 데스크탑 280px fixed left. Brand
+  + 5 nav + Simple/Pro + network + Connect.
+- [ ] **T-X-004** `app/layout.tsx` 갱신 — 기존 `<SiteHeader>` 를 SiteShell 로 대체.
+- [ ] **T-X-005** 기존 page 들 (`/`, `/portfolio`, `/autobet`, `/settings`,
+  `/q`, `/o`, `/g`) 에서 `<SiteHeader>` import 제거 — SiteShell 이 root layout 에서 처리.
+
+### Home (T-X-010~)
+
+- [ ] **T-X-010** `app/page.tsx` 의 Home rewrite — 기존 4-tab 구조 제거.
+  Hero "GOOD MORNING / What do you want to bet on?" + search/AI input.
+- [ ] **T-X-011** Auto-explore — AI key 있을 때 deep agent top 5, 없을 때
+  heuristic 5 (recent + active markets).
+- [ ] **T-X-012** Hero 시간 인사 (good morning / afternoon / evening).
+- [ ] **T-X-013** Quick filter chips (Sports / Crypto / Macro / Politics /
+  Weather) — `/discover?cat=X` 로 link.
+- [ ] **T-X-014** "Browse all <N> markets →" link to `/markets`.
+
+### Discover (T-X-020~)
+
+- [ ] **T-X-020** `app/discover/page.tsx` — full AI query + result list +
+  per-row "+ Add". Pro/Simple mode 분기.
+- [ ] **T-X-021** Recent searches (localStorage cap 5).
+- [ ] **T-X-022** Default = auto-explore result (Home 의 expanded view).
+- [ ] **T-X-023** Quick filter chip 의 active state 반영.
+
+### Basket (T-X-030~)
+
+- [ ] **T-X-030** `app/basket/page.tsx` — empty state + leg list + total
+  intent hero + step ship flow (4 step indicator).
+- [ ] **T-X-031** `components/BasketSheet.tsx` 의 modal 사용 → page 사용으로
+  refactor. 또는 둘 다 (모바일 = page route, 데스크탑 = modal).
+- [ ] **T-X-032** BasketChip 위치 — bottom nav 의 `[🛒 Basket·1]` 통합. 기존
+  floating chip 제거.
+
+### Outcome detail sheet (T-X-040~)
+
+- [ ] **T-X-040** `components/OutcomeDetailSheet.tsx` — bottom sheet (모바일)
+  / center modal (데스크탑). URL query `?sheet=outcome&id=N` sync.
+- [ ] **T-X-041** Content: outcome name + big-number % chance + Buy YES/NO
+  CTA + orderbook top 3 + ✨ Analyze + chart placeholder.
+- [ ] **T-X-042** sheet open animation < 200ms + `prefers-reduced-motion` respect.
+- [ ] **T-X-043** Buy CTA click → navigate `/trade?id=N&step=1&side=yes|no`.
+- [ ] **T-X-044** 기존 `/q?id=` `/o?id=` 페이지를 `/markets?sheet=outcome` 로
+  redirect (또는 sheet 의 alternative route 로 흡수). 별도 longform 페이지
+  유지할지 결정 후.
+
+### TradeFlow (T-X-050~)
+
+- [ ] **T-X-050** `app/trade/page.tsx` — `searchParams: { id, step, side,
+  amount?, fillId? }`. step 1/2/3 state machine, URL = source of truth.
+- [ ] **T-X-051** `components/TradeStepAmount.tsx` — big-number-md `$` input
+  + quick chips ($10/$25/$50/$100/Max) + Continue button.
+- [ ] **T-X-052** `components/TradeStepConfirm.tsx` — bet summary + builder
+  fee (정직, HIP-4 buy=0/sell=5bps) + Sign button → placeMarketBuy.
+- [ ] **T-X-053** `components/TradeStepResult.tsx` — ✓ icon + filled
+  amount + "Bet again" / "View position" / "Back home".
+- [ ] **T-X-054** Page transition slide animation (200-300ms).
+- [ ] **T-X-055** Step indicator [1 2 3] top of every step.
+- [ ] **T-X-056** Browser back = previous step (URL state 자연 동작).
+- [ ] **T-X-057** 기존 SimpleTradeWidget / TradeWidget 의 inline trade 제거
+  → CTA 만 (Buy YES / Buy NO) → /trade redirect.
+
+### AI inline ✨ (T-X-060~)
+
+- [ ] **T-X-060** `components/AIAnalyzeTrigger.tsx` — `✨` icon button.
+  outcome card 어디든 inject. click → AIAnalystSheet open.
+- [ ] **T-X-061** `components/AIAnalystSheet.tsx` — 기존 AIAnalyzePanel 의
+  sheet wrapper (모바일 bottom sheet, 데스크탑 modal).
+- [ ] **T-X-062** LLM key 없을 때 sheet 안에 inline 입력 prompt (Settings 로
+  redirect X).
+- [ ] **T-X-063** OutcomeCard / RecommendationCard / OutcomeDetailSheet 의
+  모든 카드에 ✨ icon inject — coverage 100%.
+
+### Onboarding (T-X-070~)
+
+- [ ] **T-X-070** 첫 방문 detection — localStorage `hl-markets:visited` 없으면
+  Welcome hero 표시 (오버레이 또는 Home 의 첫 section).
+- [ ] **T-X-071** Welcome content — "Connect wallet to trade · or browse only"
+  2-option card.
+- [ ] **T-X-072** 첫 trade 시도 (agent X) — 기존 EnableTradingModal 그대로
+  trigger.
+- [ ] **T-X-073** 첫 AI 분석 (LLM key X) — sheet 안에 inline "Add key" prompt.
+- [ ] **T-X-074** Onboarding skip / dismiss → localStorage 기록.
+
+### Browse markets secondary (T-X-080~)
+
+- [ ] **T-X-080** `app/markets/page.tsx` — 현재 `/` 의 Markets tab 흡수.
+  OutcomeCard grid (Simple) / table-row (Pro).
+- [ ] **T-X-081** `app/markets/pending/page.tsx` — Pending tab.
+- [ ] **T-X-082** `app/markets/historical/page.tsx` — Historical tab.
+- [ ] **T-X-083** `/markets` sub-nav — Markets / Pending / Historical 3 link.
+- [ ] **T-X-084** 기존 `app/page.tsx` 의 4-tab 제거 (Pending/Markets/Historical/AI
+  Basket). AI Basket → `/discover` redirect.
+
+### Right panel desktop (T-X-090~)
+
+- [ ] **T-X-090** `components/RightPanel.tsx` — 320px, lg+ visible, collapsible.
+- [ ] **T-X-091** Home / Discover 에서만 mount. 다른 page 에선 hidden.
+- [ ] **T-X-092** Content: 압축 auto-explore 결과 또는 새 query input.
+
+### Final (T-X-099)
+
+- [ ] **T-X-099** Visual regression — testnet mobile (375) / tablet (768) /
+  desktop (1280 / 1440). 모든 page screenshot. 기존 long-form 페이지 (`/q` `/o`
+  `/g`) deprecate 또는 alternative route 명시.
+- [ ] **T-X-100** `phase-X-visual-regression.md` 작성.
+- [ ] **T-X-101** README / CHARTER / spec.md / plan.md 의 Phase X
+  highlight 추가.
+- [ ] **T-X-102** `design-decisions-log.md` 의 D-021~D-NN append (Phase X
+  결정들).
+
+**Checkpoint X**: 신규 visitor 가 5초 안에 AI 추천 5개 카드 본다. 3분 안에 첫
+trade 완료 가능. 모바일 bottom nav 5 icon. 데스크탑 sidebar visible 모든 page.
+
+---
+
 ## Phase V — Mainnet rollout — pending
 
 - [ ] **V-1** `contracts/mainnet-rollout.md` 갱신 — AI features 운영 고려사항 + Constitution XII-XV 검증 체크리스트.

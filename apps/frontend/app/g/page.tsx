@@ -7,7 +7,6 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
-import { SiteHeader } from '@/components/SiteHeader';
 import { QuorumBar } from '@/components/QuorumBar';
 import { VotersList } from '@/components/VotersList';
 import {
@@ -223,12 +222,12 @@ function Fallback({ children }: { children: React.ReactNode }) {
 export default function DetailPage() {
   return (
     <>
-      <SiteHeader />
-      <main>
+      
+      <div>
         <Suspense fallback={<Fallback>Loading…</Fallback>}>
           <DetailInner />
         </Suspense>
-      </main>
+      </div>
     </>
   );
 }

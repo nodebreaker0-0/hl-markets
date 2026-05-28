@@ -9,7 +9,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import Link from 'next/link';
-import { SiteHeader } from '@/components/SiteHeader';
 import { useSession } from '@/lib/use-session';
 import {
   fetchPortfolio,
@@ -73,18 +72,18 @@ export default function PortfolioPage(): JSX.Element {
 
   if (!session) {
     return (
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6">
-        <SiteHeader />
+      <div className="flex flex-col gap-6">
+        
         <section className="rounded-2xl border border-divider bg-surface-elevated p-6 text-center text-sm text-on-surface-muted">
           Connect a wallet to see your portfolio.
         </section>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6">
-      <SiteHeader />
+    <div className="flex flex-col gap-6">
+      
 
       <header>
         <div className="text-xs uppercase tracking-widest text-on-surface-muted">Portfolio</div>
@@ -146,7 +145,7 @@ export default function PortfolioPage(): JSX.Element {
       <div className="text-center text-[10px] text-on-surface-muted">
         Polls every {REFRESH_MS / 1000}s · {CURRENT_NETWORK}
       </div>
-    </main>
+    </div>
   );
 }
 

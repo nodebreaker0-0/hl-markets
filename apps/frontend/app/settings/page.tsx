@@ -5,7 +5,6 @@
 
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { SiteHeader } from '@/components/SiteHeader';
 import {
   loadKeys,
   saveKeys,
@@ -98,8 +97,8 @@ export default function SettingsPage(): JSX.Element {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6">
-      <SiteHeader />
+    <div className="flex flex-col gap-6">
+      
 
       <header>
         <div className="text-xs uppercase tracking-widest text-on-surface-muted">Settings</div>
@@ -257,7 +256,7 @@ export default function SettingsPage(): JSX.Element {
           Clear all keys
         </button>
       </div>
-    </main>
+    </div>
   );
 }
 
