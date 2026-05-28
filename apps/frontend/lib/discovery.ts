@@ -19,6 +19,10 @@ import {
 } from '@/lib/api';
 import { CURRENT_NETWORK } from '@/lib/network';
 import { analyzeOpenAiRaw, analyzeAnthropicRaw, type LlmProvider } from '@/lib/llm-raw';
+import { categorize, type Category } from '@/lib/categorize';
+import { specialistFor, type SpecialistBlob, type SpecialistKeys } from '@/lib/specialists';
+import { analyzeOutcomeDeep, type DeepAgentKeys } from '@/lib/agents/orchestrator';
+import type { AnalystOutput } from '@/lib/agents/types';
 
 export interface CompactCandidate {
   outcomeId: number;
@@ -31,6 +35,12 @@ export interface CompactCandidate {
   questionSumPct: number;
   /** When applicable. */
   expiresHint?: string;
+  /** Category (Phase T) — routes specialist data lookup. */
+  category?: Category;
+  /** Specialist-fetched external data (live price, recent stats, etc.). */
+  specialistBlob?: SpecialistBlob | null;
+  /** Phase U — deep analyst output (single-call domain LLM with skill). */
+  deep?: AnalystOutput | null;
 }
 
 export interface DiscoveryRecommendation {
@@ -75,6 +85,7 @@ export async function fetchActiveCandidates(): Promise<{
       const pct = Number(m) * 100;
       // Skip degenerate extreme prices — LLM can't find edge there.
       if (pct < 1 || pct > 99) continue;
+      const cat = categorize(o.name, o.description ?? '', q.name);
       candidates.push({
         outcomeId: oid,
         sideIdx: 0,
@@ -83,42 +94,130 @@ export async function fetchActiveCandidates(): Promise<{
         description: (o.description ?? '').slice(0, 240),
         marketPct: pct,
         questionSumPct: sum * 100,
+        category: cat,
       });
     }
   }
   return { meta, candidates };
 }
 
+/** Phase T — enrich candidates with domain-specialist data (live crypto
+ *  prices, sports stats, economic indicators, weather). Best-effort: any
+ *  failure just leaves that candidate without an extra blob. Runs all
+ *  lookups in parallel. */
+export async function enrichWithSpecialists(
+  candidates: CompactCandidate[],
+  keys: SpecialistKeys,
+): Promise<CompactCandidate[]> {
+  return Promise.all(
+    candidates.map(async (c) => {
+      try {
+        const blob = await specialistFor(c.category ?? 'general', c.outcomeName, c.description, keys);
+        return { ...c, specialistBlob: blob };
+      } catch {
+        return c;
+      }
+    }),
+  );
+}
+
+/** Phase U — for each candidate, run the full deep analyst chain (skill +
+ *  domain fetchers + LLM call). This is heavier than enrichWithSpecialists
+ *  (1 LLM call per candidate) so the caller picks the top-N to deep-analyze
+ *  before the final ranking call.
+ *
+ *  Parallelism: bounded to 6 in-flight requests so we don't hammer the
+ *  user's LLM provider with a 50-candidate stampede. */
+export async function enrichWithDeepAnalysts(
+  candidates: CompactCandidate[],
+  keys: DeepAgentKeys,
+  maxConcurrent = 6,
+): Promise<CompactCandidate[]> {
+  const out = candidates.slice();
+  const queue = out.map((_, i) => i);
+  let inflight = 0;
+  let cursor = 0;
+  return new Promise((resolve) => {
+    const tryNext = (): void => {
+      if (cursor >= queue.length && inflight === 0) {
+        resolve(out);
+        return;
+      }
+      while (inflight < maxConcurrent && cursor < queue.length) {
+        const idx = queue[cursor++]!;
+        const c = out[idx]!;
+        inflight++;
+        analyzeOutcomeDeep(
+          {
+            outcomeId: c.outcomeId,
+            outcomeName: c.outcomeName,
+            description: c.description,
+            questionTitle: c.questionTitle,
+            marketPct: c.marketPct,
+          },
+          keys,
+        )
+          .then((deep) => {
+            out[idx] = { ...c, deep };
+          })
+          .catch(() => {
+            /* keep candidate without deep — fallback in orchestrator */
+          })
+          .finally(() => {
+            inflight--;
+            tryNext();
+          });
+      }
+    };
+    tryNext();
+  });
+}
+
 /** Build the system + user prompt for discovery. We deliberately tell the
  *  LLM to return a JSON array, never advice on size, and to ground its
- *  recommendations in the candidate list (no hallucinating outcomes). */
+ *  recommendations in the candidate list (no hallucinating outcomes).
+ *
+ *  Each candidate line carries its specialist blob (live crypto price /
+ *  sports stat / FRED data) when one is available — these are the Tier 3
+ *  signals that meaningfully sharpen the LLM's edge estimate.
+ */
 function buildDiscoveryPrompt(args: {
   query: string;
   candidates: CompactCandidate[];
   topK: number;
 }): { system: string; user: string } {
-  const system = `You are a prediction-market analyst helping a user discover the best basket of bets across many open markets.
+  const system = `You are a prediction-market analyst helping a user discover the highest-expected-value basket of bets across MANY OPEN MARKETS of many kinds (sports, crypto, economics, politics, weather, etc.).
 
 You will receive:
-- a user instruction (natural language, e.g. "World Cup top 5 ROI" or "70%+ confidence under 50 cents").
-- a list of candidate outcomes, one per line, in the format: "<outcomeId>\t<questionTitle>\t<outcomeName>\t<marketPct>%\t<questionSumPct>%\t<description>".
+- a user instruction (natural language).
+- a list of candidate outcomes drawn from every active market. Each candidate may carry external "live data" (recent crypto prices, sports stats, economic series, weather, etc.) when available — use it as factual signal, not as the only input.
 
 Rules:
 - Output ONLY a JSON object: {"picks": [{"outcomeId": int, "fairPct": number, "edgePp": number, "confidence": int 1-5, "reasoning": string}]}
-- "picks" should contain at most ${args.topK} entries — your best matches for the user's instruction.
+- DO NOT group by domain. Pick the strongest single list of up to ${args.topK} bets across all topics by expected value.
 - "outcomeId" MUST be one from the input list. Never invent outcomes.
 - "fairPct" is your point estimate (0-100) for that outcome resolving YES.
 - "edgePp" = fairPct - marketPct.
-- "confidence": 5 = strong evidence, 1 = pure guess.
-- "reasoning" is one short sentence, no fluff.
-- If no candidates match the user's instruction, return {"picks": []}.
+- "confidence": 5 = strong evidence (live data plus high prior), 1 = pure guess.
+- "reasoning" is one short sentence — cite the live-data signal when it drove your call.
+- If no candidates have meaningful edge, return {"picks": []}.
 - Never recommend a bet size.
 `;
 
-  const lines = args.candidates.map(
-    (c) =>
-      `${c.outcomeId}\t${c.questionTitle}\t${c.outcomeName}\t${c.marketPct.toFixed(1)}%\t${c.questionSumPct.toFixed(0)}%\t${c.description.replace(/\s+/g, ' ').slice(0, 180)}`,
-  );
+  const lines = args.candidates.map((c) => {
+    const base = `${c.outcomeId}\t${c.questionTitle}\t${c.outcomeName}\t${c.marketPct.toFixed(1)}%\t${c.questionSumPct.toFixed(0)}%\t${c.description.replace(/\s+/g, ' ').slice(0, 180)}`;
+    // Prefer deep analyst output (Phase U) — already a structured fair %
+    // and reasoning. Fall back to the lighter Phase T specialist blob.
+    if (c.deep) {
+      const r = c.deep.reasoning.slice(0, 3).join(' / ');
+      const src = c.deep.sources.slice(0, 3).map((s) => s.label).join(', ');
+      return `${base}\t[deep ${c.category ?? 'general'} · fair ${c.deep.fairPct.toFixed(1)}% · ${c.deep.confidence} conf] ${r}${src ? ` (cite: ${src})` : ''}`.slice(0, 700);
+    }
+    if (c.specialistBlob) {
+      return `${base}\t[live ${c.specialistBlob.source}] ${c.specialistBlob.text.replace(/\s+/g, ' ').slice(0, 200)}`;
+    }
+    return base;
+  });
   const user = `User instruction:\n${args.query}\n\nCandidates (${args.candidates.length}):\n${lines.join('\n')}`;
 
   return { system, user };

@@ -15,6 +15,8 @@ import Link from 'next/link';
 import clsx from 'clsx';
 import {
   fetchActiveCandidates,
+  enrichWithSpecialists,
+  enrichWithDeepAnalysts,
   askLlmDiscover,
   quarterKellyUsd,
   type DiscoveryRecommendation,
@@ -26,23 +28,31 @@ import { pushToast } from '@/lib/toast';
 const DEFAULT_QUERIES = [
   'Top 5 best risk/reward across all active markets right now',
   'Underpriced favorites (market < 50% but you think > 60%)',
-  'Sports markets only, top 3 by expected value',
   'Ending within 7 days and looks mispriced',
   '70%+ confidence outcomes trading under 50¢',
+  'Hidden long-shots with strong recent signal',
 ];
 
+/** Default "no-input" query when auto-explore fires on tab open. */
+const AUTO_EXPLORE_QUERY =
+  'Across all active markets, find the highest-expected-value bets right now using whatever live data is available. Mix domains; do not group.';
+
+const AUTO_CACHE_KEY = 'hl-markets:ai-picks-cache';
+const AUTO_CACHE_TTL_MS = 60 * 60 * 1000; // 1h
+
 export function AIDiscovery(): JSX.Element {
-  const [query, setQuery] = useState<string>(DEFAULT_QUERIES[0]!);
+  const [query, setQuery] = useState<string>(AUTO_EXPLORE_QUERY);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [results, setResults] = useState<DiscoveryRecommendation[] | null>(null);
   const [candidateCount, setCandidateCount] = useState<number>(0);
+  const [autoStatus, setAutoStatus] = useState<'idle' | 'running' | 'cached' | 'failed'>('idle');
 
-  const onRun = async (): Promise<void> => {
+  const runDiscovery = async (q: string): Promise<void> => {
     const keys = loadKeys();
     const provider = keys.preferred;
-    const key = provider === 'openai' ? keys.openai : provider === 'anthropic' ? keys.anthropic : null;
-    if (!provider || !key) {
+    const llmKey = provider === 'openai' ? keys.openai : provider === 'anthropic' ? keys.anthropic : null;
+    if (!provider || !llmKey) {
       setErr('Add an LLM key in /settings first.');
       return;
     }
@@ -52,11 +62,42 @@ export function AIDiscovery(): JSX.Element {
     try {
       const { candidates } = await fetchActiveCandidates();
       setCandidateCount(candidates.length);
+      // Phase T — lightweight specialist blobs (no LLM, just live data fetch).
+      const tierTwoEnriched = await enrichWithSpecialists(candidates, {
+        footballData: keys.footballData ?? null,
+        fred: keys.fred ?? null,
+        openweather: keys.openweather ?? null,
+      });
+      // Phase U — deep analyst pass on the top 12 most promising candidates.
+      // We pick by "interesting" = market price not at extremes, prefer ones
+      // that already got a specialist blob (= we have data to work with).
+      const promising = tierTwoEnriched
+        .filter((c) => c.marketPct >= 5 && c.marketPct <= 95)
+        .sort((a, b) => {
+          const aHas = a.specialistBlob ? 1 : 0;
+          const bHas = b.specialistBlob ? 1 : 0;
+          return bHas - aHas;
+        })
+        .slice(0, 12);
+      const deepResolved = await enrichWithDeepAnalysts(promising, {
+        provider,
+        llmKey,
+        tavily: keys.tavily ?? null,
+        footballData: keys.footballData ?? null,
+        fred: keys.fred ?? null,
+        openweather: keys.openweather ?? null,
+      });
+      // Merge deep results back into the full candidate list so the final
+      // ranker sees both tiers.
+      const deepById = new Map(deepResolved.map((c) => [c.outcomeId, c] as const));
+      const finalCandidates = tierTwoEnriched.map((c) =>
+        deepById.has(c.outcomeId) ? deepById.get(c.outcomeId)! : c,
+      );
       const picks = await askLlmDiscover({
         provider,
-        key,
-        query: query.trim(),
-        candidates,
+        key: llmKey,
+        query: q,
+        candidates: finalCandidates,
         topK: 6,
       });
       // Compute Kelly suggestions (assumes $100 budget by default; user can
@@ -70,9 +111,17 @@ export function AIDiscovery(): JSX.Element {
           freeUsdc: FREE_BUDGET,
         }),
       }));
-      // Drop picks with no actionable size (negative edge or sub-$10 Kelly).
       const actionable = enriched.filter((p) => p.suggestedUsd >= 10);
       setResults(actionable);
+      // Cache so the next AI Basket tab open is instant.
+      try {
+        window.localStorage.setItem(
+          AUTO_CACHE_KEY,
+          JSON.stringify({ ts: Date.now(), query: q, picks: actionable, candidateCount: candidates.length }),
+        );
+      } catch {
+        /* ignore quota */
+      }
     } catch (e) {
       const msg = (e as Error).message;
       setErr(msg);
@@ -81,6 +130,51 @@ export function AIDiscovery(): JSX.Element {
       setBusy(false);
     }
   };
+
+  const onRun = (): void => {
+    setAutoStatus('idle');
+    void runDiscovery(query.trim());
+  };
+
+  // Auto-explore: on tab mount, show last hour's cached picks instantly;
+  // if no cache or stale, run the no-input query in the background.
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const raw = window.localStorage.getItem(AUTO_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          ts: number;
+          query: string;
+          picks: DiscoveryRecommendation[];
+          candidateCount: number;
+        };
+        if (Date.now() - parsed.ts < AUTO_CACHE_TTL_MS) {
+          if (!cancelled) {
+            setResults(parsed.picks);
+            setCandidateCount(parsed.candidateCount);
+            setAutoStatus('cached');
+            return;
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    // No fresh cache → kick off an auto run.
+    const keys = loadKeys();
+    const provider = keys.preferred;
+    const llmKey = provider === 'openai' ? keys.openai : provider === 'anthropic' ? keys.anthropic : null;
+    if (!provider || !llmKey) return; // user hasn't set keys yet — wait for manual run.
+    setAutoStatus('running');
+    void runDiscovery(AUTO_EXPLORE_QUERY).then(() => {
+      if (!cancelled) setAutoStatus('idle');
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addOne = (r: DiscoveryRecommendation): void => {
     try {
@@ -133,12 +227,21 @@ export function AIDiscovery(): JSX.Element {
   return (
     <section className="space-y-4">
       <div className="rounded-2xl border border-hl-mint/30 bg-hl-mint/5 p-3">
-        <div className="text-[10px] uppercase tracking-widest text-hl-mint">
-          AI Basket Discovery
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] uppercase tracking-widest text-hl-mint">
+            ✨ AI Picks · live data + every active market
+          </div>
+          {autoStatus === 'running' && (
+            <span className="text-[10px] text-hl-subtle">running auto-scan…</span>
+          )}
+          {autoStatus === 'cached' && (
+            <span className="text-[10px] text-hl-subtle">cached · re-scan to refresh</span>
+          )}
         </div>
         <p className="mt-1 text-xs text-hl-subtle">
-          Type a plain-English request. AI scans every active market and returns
-          a curated basket. You decide which to bet on — AI never auto-trades.
+          AI scans every active market (mixing sports, crypto, politics, weather…) and
+          enriches each candidate with live external data before picking the highest-EV
+          basket. You decide which to bet — AI never auto-trades.
         </p>
       </div>
 

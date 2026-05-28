@@ -17,10 +17,21 @@ import {
 import { pushToast } from '@/lib/toast';
 
 export default function SettingsPage(): JSX.Element {
-  const [keys, setKeys] = useState<LlmKeys>({ preferred: null, openai: null, anthropic: null, tavily: null });
+  const [keys, setKeys] = useState<LlmKeys>({
+    preferred: null,
+    openai: null,
+    anthropic: null,
+    tavily: null,
+    footballData: null,
+    fred: null,
+    openweather: null,
+  });
   const [openaiInput, setOpenaiInput] = useState('');
   const [anthropicInput, setAnthropicInput] = useState('');
   const [tavilyInput, setTavilyInput] = useState('');
+  const [footballInput, setFootballInput] = useState('');
+  const [fredInput, setFredInput] = useState('');
+  const [weatherInput, setWeatherInput] = useState('');
   const [testing, setTesting] = useState<LlmProvider | null>(null);
 
   useEffect(() => {
@@ -29,6 +40,9 @@ export default function SettingsPage(): JSX.Element {
     setOpenaiInput(k.openai ?? '');
     setAnthropicInput(k.anthropic ?? '');
     setTavilyInput(k.tavily ?? '');
+    setFootballInput(k.footballData ?? '');
+    setFredInput(k.fred ?? '');
+    setWeatherInput(k.openweather ?? '');
   }, []);
 
   const persist = (next: LlmKeys): void => {
@@ -160,6 +174,67 @@ export default function SettingsPage(): JSX.Element {
         testing={false}
         savedKey={keys.tavily ?? null}
         helper="When set, AI Analyze fetches 5 web results before the LLM call · ~$0.00 / call on dev tier"
+      />
+
+      <section className="rounded-2xl border border-hl-border bg-hl-surface p-4">
+        <div className="text-[10px] uppercase tracking-widest text-hl-subtle">
+          Domain specialist data (optional · Phase T)
+        </div>
+        <p className="mt-1 text-xs text-hl-subtle">
+          AI Basket Discovery automatically calls these APIs for each candidate
+          when their key is set. Crypto uses CoinGecko (no key required).
+        </p>
+      </section>
+
+      <KeyCard
+        title="football-data.org (sports)"
+        placeholder="your token"
+        value={footballInput}
+        onChange={setFootballInput}
+        onSave={() => {
+          persist({ ...keys, footballData: footballInput.trim() || null });
+          pushToast({ tone: 'success', message: 'football-data key saved' });
+        }}
+        onTest={() => {
+          pushToast({ tone: 'info', message: 'Live test happens during Discovery runs' });
+        }}
+        testing={false}
+        savedKey={keys.footballData ?? null}
+        helper="Free tier: ~10 calls/min · used to enrich sports outcomes (team form, H2H, league standing)"
+      />
+
+      <KeyCard
+        title="FRED API (economics)"
+        placeholder="your fred key"
+        value={fredInput}
+        onChange={setFredInput}
+        onSave={() => {
+          persist({ ...keys, fred: fredInput.trim() || null });
+          pushToast({ tone: 'success', message: 'FRED key saved' });
+        }}
+        onTest={() => {
+          pushToast({ tone: 'info', message: 'Live test happens during Discovery runs' });
+        }}
+        testing={false}
+        savedKey={keys.fred ?? null}
+        helper="St. Louis Fed · free · CPI, unemployment, GDP, fed funds rate, PPI"
+      />
+
+      <KeyCard
+        title="OpenWeatherMap (weather)"
+        placeholder="your owm key"
+        value={weatherInput}
+        onChange={setWeatherInput}
+        onSave={() => {
+          persist({ ...keys, openweather: weatherInput.trim() || null });
+          pushToast({ tone: 'success', message: 'OpenWeather key saved' });
+        }}
+        onTest={() => {
+          pushToast({ tone: 'info', message: 'Live test happens during Discovery runs' });
+        }}
+        testing={false}
+        savedKey={keys.openweather ?? null}
+        helper="Free tier: 60 calls/min · used for weather-bet outcomes"
       />
 
       <section className="rounded-2xl border border-mainnet/30 bg-mainnet/5 p-4 text-xs text-hl-text">

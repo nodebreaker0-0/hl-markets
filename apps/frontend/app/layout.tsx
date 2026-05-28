@@ -30,7 +30,7 @@ const BACKEND_ORIGIN = (() => {
 
 const CSP_PROD =
   "default-src 'self'; " +
-  `connect-src 'self' https://api.hyperliquid.xyz https://api.hyperliquid-testnet.xyz https://api.openai.com https://api.anthropic.com https://api.tavily.com ${BACKEND_ORIGIN}; ` +
+  `connect-src 'self' https://api.hyperliquid.xyz https://api.hyperliquid-testnet.xyz https://api.openai.com https://api.anthropic.com https://api.tavily.com https://api.coingecko.com https://api.football-data.org https://api.stlouisfed.org https://api.openweathermap.org ${BACKEND_ORIGIN}; ` +
   "script-src 'self' 'unsafe-inline'; " +
   "style-src 'self' 'unsafe-inline'; " +
   "img-src 'self' data:; " +

@@ -27,6 +27,13 @@ export interface LlmKeys {
   /** Optional Tavily search key — when set, AI Analyze enriches its prompt
    *  with the top web results for the outcome before calling the LLM. */
   tavily?: string | null;
+  // ---- Phase T — domain specialist keys ---------------------------------
+  /** football-data.org key. Without it sports candidates get heuristic note only. */
+  footballData?: string | null;
+  /** FRED (St Louis Fed) key. Required for economics specialist. */
+  fred?: string | null;
+  /** OpenWeatherMap key. Required for weather specialist. */
+  openweather?: string | null;
 }
 
 export function loadKeys(): LlmKeys {
