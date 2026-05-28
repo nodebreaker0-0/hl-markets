@@ -329,6 +329,62 @@ discovery loop stall 0건. cited URL 이 모두 fetcher 의 실제 반환값.
 
 ---
 
+## Phase W — Apply DESIGN.md v1 (UI/UX 재설계) — pending
+
+> Source: `/DESIGN.md` v1 (2026-05-29) + `docs/design-decisions-log.md`.
+> Lint gate: `npx @google/design.md lint DESIGN.md` errors=0 (warnings 12건
+> 의식적 허용 명시됨, D-014 참조).
+> 적용 순서: token export → tailwind config replace → 컴포넌트 별
+> 마이그레이션 → verify-design CI gate.
+
+### Token export & config
+
+- [ ] **W-1** Tailwind v3 theme export — `npx @google/design.md export --format json-tailwind DESIGN.md > apps/frontend/tailwind.theme.generated.json`. Generated file 은 .gitignore X (review 가능하게 commit).
+- [ ] **W-2** `apps/frontend/tailwind.config.ts` 갱신 — `theme.extend` 가 generated JSON 을 import. 기존 `hl.*` 컬러 hardcode 제거.
+- [ ] **W-3** 다국어 fallback chain — `globals.css` 의 `body { font-family: ... }` 가 Inter + Noto Sans KR + Noto Sans JP + Noto Sans SC + system-ui (D-007).
+- [ ] **W-4** Focus ring 글로벌 CSS — `:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }` (D-013 의 orphaned `focus` token 의 사용처).
+- [ ] **W-5** `prefers-reduced-motion` 글로벌 respect — animation/transition 모두 0.01ms 강제.
+
+### Verify gate
+
+- [ ] **W-6** Makefile `verify-design` target — `npx @google/design.md lint DESIGN.md` + grep 으로 hardcoded `#[0-9a-fA-F]\{6\}` 검출 (`apps/frontend/{app,components,lib}` 만 검사, tailwind.config 와 DESIGN.md 와 generated json 은 제외).
+- [ ] **W-7** GitHub Actions `ci.yml` 에 `make verify-design` 추가 — design drift 발견 시 CI fail.
+
+### 컴포넌트 별 마이그레이션 (Simple mode 우선, Pro mode 는 W-15+ 에서)
+
+- [ ] **W-8** `components/OutcomeCard.tsx` 리디자인 — Polymarket 패턴 (left info + right CTA big button). `components.outcome-card` + `button-up` / `button-down` 토큰 사용. % chance bar (mint, 0-100%) + big-number-md `%` 수치.
+- [ ] **W-9** `app/portfolio/page.tsx` — Robinhood 패턴의 hero-summary 추가. portfolio total = big-number, 그 아래 daily PnL 1줄 + sparkline + 4 KPI row.
+- [ ] **W-10** `components/SimpleTradeWidget.tsx` — Multi-step flow (Step 1 amount → Step 2 confirm → Step 3 result). 각 step 카드, 하단 sticky CTA, step-dot 3개. amount input 은 input-amount (big-number-md).
+- [ ] **W-11** `components/BasketSheet.tsx` — Step 1 leg edit → Step 2 review (각 leg 별 fee) → Step 3 sign → Step 4 result. step-dot 4개.
+- [ ] **W-12** `components/AIAnalyzePanel.tsx` — fair % 가 big-number, reasoning bullets 가 body-md (동등 weight, D-013). source citation 가 caption + status-info badge.
+- [ ] **W-13** `components/AIDiscovery.tsx` — top 1 row 가 hero (big-number-md edge%), 나머지 row 가 outcome-card grid. confidence 는 1-5 star (mint).
+- [ ] **W-14** `app/autobet/page.tsx` — rule form 이 multi-step (Step 1 cap → Step 2 filter → Step 3 acknowledge → Step 4 enable). daily progress hero (big-number, 사용 / cap).
+- [ ] **W-15** Mobile sticky bottom CTA pattern — TradeWidget 의 Buy / Cash out / Add to basket 모두 모바일에서 하단 sticky.
+
+### Pro mode 분리 (Phase J.6 toggle 확장)
+
+- [ ] **W-16** `lib/uiMode.ts` — `'simple' | 'pro'` 토글 state (localStorage `hl-markets:ui-mode-v1`, default `'simple'`).
+- [ ] **W-17** OutcomeDetail 의 Pro mode — orderbook table (table-row + mono-md) + 시간순 candle chart + tabbed sub-side.
+- [ ] **W-18** Portfolio 의 Pro mode — holdings + open orders + recent fills 가 각각 table-row + mono-md. hero-summary 가 compact 1-line top bar.
+- [ ] **W-19** Discovery 의 Pro mode — top-12 candidate 가 table-row, 한 화면 많은 정보.
+- [ ] **W-20** UI mode toggle 컴포넌트 — header 의 sub-nav 에 Simple/Pro 토글.
+
+### 다국어 typography 검증
+
+- [ ] **W-21** Korean 텍스트 sample page — `/dev/typography-kr` 에 모든 typography token + 한국어 sample. weight 일치 + lineHeight 가독성 검증.
+- [ ] **W-22** Japanese / Chinese fallback 검증 (사용자 시각 manual review — design-skill 의 Stop condition 6).
+
+### Final
+
+- [ ] **W-23** Visual regression — testnet/mainnet 의 모든 페이지 screenshot (mobile 375 / tablet 768 / desktop 1280). 변경 후 시각 차이 record + DESIGN.md prose 와 일치 확인.
+- [ ] **W-24** README.md 의 Architecture 다이어그램 갱신 — DESIGN.md 가 source of truth 임을 명시.
+- [ ] **W-25** `docs/design-decisions-log.md` 의 D-014 이후 추가 결정 (마이그레이션 중 발견되는 edge case) append.
+
+**Checkpoint W**: `make verify` 통과 + `make verify-design` 통과 + 모든 페이지가
+DESIGN.md token 만 사용 (hardcoded hex 0건) + Simple/Pro 토글 작동.
+
+---
+
 ## Phase V — Mainnet rollout — pending
 
 - [ ] **V-1** `contracts/mainnet-rollout.md` 갱신 — AI features 운영 고려사항 + Constitution XII-XV 검증 체크리스트.
