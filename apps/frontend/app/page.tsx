@@ -9,6 +9,7 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { Hero } from '@/components/Hero';
 import { ArbAlerts } from '@/components/ArbAlerts';
 import { EndingSoon } from '@/components/EndingSoon';
+import { AIDiscovery } from '@/components/AIDiscovery';
 import { CURRENT_NETWORK, type Network } from '@/lib/network';
 import { SearchBar } from '@/components/SearchBar';
 import { GovernanceCard } from '@/components/GovernanceCard';
@@ -38,7 +39,7 @@ import {
 } from '@/lib/outcome-question';
 import type { GovernanceItem } from '@/lib/governance/types';
 
-type Tab = 'active' | 'markets' | 'historical';
+type Tab = 'active' | 'markets' | 'historical' | 'ai-basket';
 
 const REFRESH_MS = 30_000;
 
@@ -95,7 +96,7 @@ function titleFor(item: GovernanceItem): string {
 // sessionStorage key for the last tab so navigating to /o /q /g and pressing
 // Back lands on the same view. Network is build-time, no longer state.
 const SS_TAB = 'hl-markets:tab';
-const TABS: readonly Tab[] = ['active', 'markets', 'historical'] as const;
+const TABS: readonly Tab[] = ['active', 'markets', 'historical', 'ai-basket'] as const;
 
 function readStoredTab(): Tab {
   if (typeof window === 'undefined') return 'active';
@@ -245,7 +246,7 @@ export default function HomePage() {
         <EndingSoon />
 
         <nav className="flex shrink-0 gap-1 overflow-x-auto rounded-full bg-hl-surface p-1 ring-1 ring-hl-border self-start">
-          {(['active', 'markets', 'historical'] as const).map((t) => (
+          {(['active', 'markets', 'historical', 'ai-basket'] as const).map((t) => (
             <button
               key={t}
               type="button"
@@ -258,7 +259,13 @@ export default function HomePage() {
                   : 'text-hl-subtle hover:text-hl-text',
               )}
             >
-              {t === 'active' ? 'Pending' : t === 'markets' ? 'Markets' : 'Historical'}
+              {t === 'active'
+                ? 'Pending'
+                : t === 'markets'
+                  ? 'Markets'
+                  : t === 'historical'
+                    ? 'Historical'
+                    : '✨ AI Basket'}
             </button>
           ))}
         </nav>
@@ -287,7 +294,7 @@ export default function HomePage() {
             loadedAt={loadedAt}
             onRefresh={() => loadMarkets(network)}
           />
-        ) : (
+        ) : tab === 'historical' ? (
           <HistoricalSection
             items={visible}
             validators={validators}
@@ -298,6 +305,8 @@ export default function HomePage() {
             loadedAt={loadedAt}
             onRefresh={() => loadHistorical(network)}
           />
+        ) : (
+          <AIDiscovery />
         )}
 
         <footer className="border-t border-hl-border pt-4 text-[11px] text-hl-subtle">
