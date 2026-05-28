@@ -111,7 +111,8 @@ function QuestionCardImpl({
   if (mode === 'pro') {
     return (
       <Link
-        href={`/q?id=${question.question}`}
+        href={`?sheet=outcome&id=${question.fallbackOutcome}&qid=${question.question}`}
+        scroll={false}
         className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-divider px-sm py-sm hover:bg-surface-elevated"
       >
         <div className="min-w-0">
@@ -142,7 +143,8 @@ function QuestionCardImpl({
   // Simple mode — Polymarket 패턴 (left info + right CTA).
   return (
     <Link
-      href={`/q?id=${question.question}`}
+      href={`?sheet=outcome&id=${question.fallbackOutcome}&qid=${question.question}`}
+      scroll={false}
       className={clsx(
         // outcome-card base — DESIGN.md `components.outcome-card` 1:1
         'group flex flex-col rounded-lg bg-surface-elevated p-base',
@@ -254,7 +256,7 @@ function StandaloneCardImpl({
   if (mode === 'pro') {
     return (
       <Link
-        href={`/o?id=${outcome.outcome}`}
+        href={`?sheet=outcome&id=${outcome.outcome}`}
         className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-divider px-sm py-sm hover:bg-surface-elevated"
       >
         <div className="min-w-0 truncate text-body-sm font-semibold text-on-surface">
@@ -277,7 +279,7 @@ function StandaloneCardImpl({
 
   return (
     <Link
-      href={`/o?id=${outcome.outcome}`}
+      href={`?sheet=outcome&id=${outcome.outcome}`}
       className={clsx(
         'group flex flex-col rounded-lg bg-surface-elevated p-base',
         'transition-colors hover:bg-surface-overlay',

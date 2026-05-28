@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import { Toaster } from '@/components/Toaster';
 import { AutobetTicker } from '@/components/AutobetTicker';
 import { SiteShell } from '@/components/SiteShell';
+import { OutcomeDetailSheet } from '@/components/OutcomeDetailSheet';
 
 export const metadata: Metadata = {
   title: 'hl-markets — Hyperliquid governance explorer',
@@ -49,6 +51,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Phase X — SiteShell 가 mobile bottom nav / desktop sidebar 처리.
             기존 BasketChip floating 은 nav 의 Basket icon 으로 통합 → 제거. */}
         <SiteShell>{children}</SiteShell>
+        {/* T-X-040 — OutcomeDetailSheet portal. URL ?sheet=outcome&id= 로 호출.
+            useSearchParams() 가 client component 만 → Suspense 필요 (Next.js 14). */}
+        <Suspense fallback={null}>
+          <OutcomeDetailSheet />
+        </Suspense>
         <Toaster />
         <AutobetTicker />
       </body>
