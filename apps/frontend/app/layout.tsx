@@ -5,6 +5,7 @@ import { Toaster } from '@/components/Toaster';
 import { AutobetTicker } from '@/components/AutobetTicker';
 import { SiteShell } from '@/components/SiteShell';
 import { OutcomeDetailSheet } from '@/components/OutcomeDetailSheet';
+import { AIAnalystSheet } from '@/components/AIAnalystSheet';
 
 export const metadata: Metadata = {
   title: 'hl-markets — Hyperliquid governance explorer',
@@ -55,6 +56,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             useSearchParams() 가 client component 만 → Suspense 필요 (Next.js 14). */}
         <Suspense fallback={null}>
           <OutcomeDetailSheet />
+        </Suspense>
+        <Suspense fallback={null}>
+          <AIAnalystSheet />
         </Suspense>
         <Toaster />
         <AutobetTicker />

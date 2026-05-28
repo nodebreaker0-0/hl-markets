@@ -16,7 +16,10 @@
 // 모바일: 1열 stack, CTA 가 카드 하단 full-width.
 // 데스크탑 (sm:): 좌 60% info + 우 40% CTA flex.
 
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import type {
   AllMidsResponse,
@@ -79,6 +82,8 @@ function QuestionCardImpl({
   mids,
 }: Extract<Props, { variant: 'question' }>) {
   const { mode } = useUiMode();
+  const pathname = usePathname() ?? '/';
+  const sheetHref = `${pathname}?sheet=outcome&id=${question.fallbackOutcome}&qid=${question.question}`;
   const options = question.namedOutcomes
     .map((id) => {
       const o = outcomeMap.get(id);
@@ -111,7 +116,7 @@ function QuestionCardImpl({
   if (mode === 'pro') {
     return (
       <Link
-        href={`?sheet=outcome&id=${question.fallbackOutcome}&qid=${question.question}`}
+        href={sheetHref}
         scroll={false}
         className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-divider px-sm py-sm hover:bg-surface-elevated"
       >
@@ -143,7 +148,7 @@ function QuestionCardImpl({
   // Simple mode — Polymarket 패턴 (left info + right CTA).
   return (
     <Link
-      href={`?sheet=outcome&id=${question.fallbackOutcome}&qid=${question.question}`}
+      href={sheetHref}
       scroll={false}
       className={clsx(
         // outcome-card base — DESIGN.md `components.outcome-card` 1:1
@@ -241,6 +246,8 @@ function StandaloneCardImpl({
   mids,
 }: Extract<Props, { variant: 'standalone' }>) {
   const { mode } = useUiMode();
+  const pathname = usePathname() ?? '/';
+  const sheetHref = `${pathname}?sheet=outcome&id=${outcome.outcome}`;
   const keys = assetKeysFor(outcome.outcome, outcome.sideSpecs.length);
   const pcts = keys.map((k) => readMid(mids, k));
   const primaryPct = pcts[0] ?? null;
@@ -256,7 +263,7 @@ function StandaloneCardImpl({
   if (mode === 'pro') {
     return (
       <Link
-        href={`?sheet=outcome&id=${outcome.outcome}`}
+        href={sheetHref}
         className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-divider px-sm py-sm hover:bg-surface-elevated"
       >
         <div className="min-w-0 truncate text-body-sm font-semibold text-on-surface">
@@ -279,7 +286,7 @@ function StandaloneCardImpl({
 
   return (
     <Link
-      href={`?sheet=outcome&id=${outcome.outcome}`}
+      href={sheetHref}
       className={clsx(
         'group flex flex-col rounded-lg bg-surface-elevated p-base',
         'transition-colors hover:bg-surface-overlay',
