@@ -11,6 +11,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AIDiscovery } from '@/components/AIDiscovery';
+import { WelcomeOnboarding } from '@/components/WelcomeOnboarding';
 
 const CATEGORIES = [
   { label: 'Sports', icon: '⚽', href: '/discover?cat=sports' },
@@ -31,6 +32,9 @@ export default function HomePage(): JSX.Element {
 
   return (
     <div className="flex flex-col gap-2xl pb-2xl">
+      {/* ─── Welcome (첫 방문만, T-X-070) ─── */}
+      <WelcomeOnboarding />
+
       {/* ─── Hero ─── */}
       <section className="flex flex-col gap-md pt-base">
         <span className="text-caption uppercase tracking-widest text-on-surface-muted">
