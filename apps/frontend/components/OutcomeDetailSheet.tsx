@@ -197,9 +197,12 @@ export function OutcomeDetailSheet(): JSX.Element | null {
                 type="button"
                 className="flex w-full items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-base py-md text-button font-semibold text-primary transition-colors hover:bg-primary/10"
                 onClick={() => {
-                  // Phase X-060 — AI Analyst sheet trigger. Stub: navigate to
-                  // /trade 와 비슷한 패턴으로 다음 turn 에서 AIAnalystSheet 연결.
+                  // P1.3 fix — analyst 열 때 outcome sheet 자동 close.
+                  // modal nesting 회피, swap 패턴.
                   const params = new URLSearchParams(sp.toString());
+                  params.delete('sheet');
+                  params.delete('id');
+                  params.delete('qid');
                   params.set('analyze', String(outcomeId));
                   router.push(`${pathname}?${params.toString()}`);
                 }}

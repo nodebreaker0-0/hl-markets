@@ -256,6 +256,26 @@ export default function SettingsPage(): JSX.Element {
           Clear all keys
         </button>
       </div>
+
+      {/* P2.7 — Settings 와 Autobet 연결. autobet 은 별도 page 라 link 만. */}
+      <section className="mt-lg rounded-xl bg-surface-elevated p-lg">
+        <div className="flex flex-col gap-1">
+          <span className="text-caption uppercase tracking-widest text-on-surface-muted">
+            Other settings
+          </span>
+          <h2 className="text-h2 font-semibold text-on-surface">Auto-bet rules</h2>
+          <p className="text-body-sm text-on-surface-muted">
+            Set daily cap / per-bet max / min edge / category filters for the
+            5-min background scanner. Default OFF.
+          </p>
+        </div>
+        <a
+          href="/autobet"
+          className="mt-md inline-flex items-center gap-2 rounded-md bg-surface px-base py-md text-button font-semibold text-on-surface transition-colors hover:bg-surface-overlay"
+        >
+          Open Auto-bet →
+        </a>
+      </section>
     </div>
   );
 }

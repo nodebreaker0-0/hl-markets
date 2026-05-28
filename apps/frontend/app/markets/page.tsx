@@ -5,7 +5,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { Hero } from '@/components/Hero';
 import { ArbAlerts } from '@/components/ArbAlerts';
 import { EndingSoon } from '@/components/EndingSoon';
 import { CURRENT_NETWORK, type Network } from '@/lib/network';
@@ -234,7 +233,15 @@ export default function HomePage() {
       
 
       <div className="space-y-6 pb-12">
-        <Hero />
+        {/* P2.4 — Markets 가 secondary page 라 Hero 짧게. Home 과 무게중심 분리. */}
+        <header className="flex flex-col gap-1 pt-base">
+          <span className="text-caption uppercase tracking-widest text-on-surface-muted">
+            Browse all markets
+          </span>
+          <h1 className="text-h1 font-bold text-on-surface">
+            Pending · Trading · Historical
+          </h1>
+        </header>
 
         <ArbAlerts />
 

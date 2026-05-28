@@ -20,7 +20,9 @@ export function UiModeToggle({ className }: { className?: string }): JSX.Element
       role="tablist"
       aria-label="UI density mode"
       className={clsx(
-        'inline-flex shrink-0 items-center gap-px rounded-full bg-surface-elevated p-0.5',
+        // Phase X polish: flex-col parent (Sidebar footer) 에서 stretch 막기 위해
+        // `self-start`. inline-flex 만으로 부족 (parent align-items 가 우선).
+        'inline-flex w-fit shrink-0 items-center gap-px self-start rounded-full bg-surface-elevated p-0.5',
         className,
       )}
     >

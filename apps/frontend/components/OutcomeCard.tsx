@@ -160,7 +160,7 @@ function QuestionCardImpl({
       {/* LEFT — info */}
       <div className="flex min-w-0 flex-1 flex-col gap-md">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="min-w-0 truncate text-h2 font-semibold leading-snug text-on-surface">
+          <h3 className="min-w-0 text-h2 font-semibold leading-snug text-on-surface line-clamp-2">
             {qTitle}
           </h3>
           <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary ring-1 ring-primary/40">
@@ -223,7 +223,7 @@ function QuestionCardImpl({
       </div>
 
       {/* RIGHT — CTA. 모바일 하단 stack, 데스크탑 우측 column. */}
-      <div className="mt-base flex shrink-0 flex-col items-stretch gap-sm sm:mt-0 sm:w-32 sm:justify-center">
+      <div className="mt-base flex shrink-0 flex-col items-stretch gap-sm sm:mt-0 sm:w-28 sm:justify-center">
         <span
           className={clsx(
             'inline-flex min-h-[44px] items-center justify-center rounded-md',
@@ -296,7 +296,7 @@ function StandaloneCardImpl({
       {/* LEFT — info */}
       <div className="flex min-w-0 flex-1 flex-col gap-md">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="min-w-0 truncate text-h2 font-semibold leading-snug text-on-surface">
+          <h3 className="min-w-0 text-h2 font-semibold leading-snug text-on-surface line-clamp-2">
             {label}
           </h3>
           <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-muted ring-1 ring-divider">
@@ -354,7 +354,7 @@ function StandaloneCardImpl({
       {/* RIGHT — single View CTA. W-10 후속에서 quick trade modal 연결 시
           듀얼 Buy YES / Buy NO 패턴으로 전환 (e.stopPropagation + modal).
           현재는 카드 click = detail 페이지 이동만 — Buy 버튼 가짜는 혼란. */}
-      <div className="mt-base flex shrink-0 flex-col items-stretch gap-sm sm:mt-0 sm:w-32 sm:justify-center">
+      <div className="mt-base flex shrink-0 flex-col items-stretch gap-sm sm:mt-0 sm:w-28 sm:justify-center">
         <span
           className={clsx(
             'inline-flex min-h-[44px] items-center justify-center rounded-md',

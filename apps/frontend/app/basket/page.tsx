@@ -154,6 +154,9 @@ export default function BasketPage(): JSX.Element {
     );
   }
 
+  // P3.8 — Step indicator state (Edit / Review / Sign).
+  const stepState: 'edit' | 'review' | 'sign' = busy ? 'sign' : err ? 'review' : 'edit';
+
   // ----- Filled state -----
   return (
     <div className="flex flex-col gap-2xl pb-2xl">
@@ -168,6 +171,38 @@ export default function BasketPage(): JSX.Element {
           Each leg fires IOC at best ask + 2% slip. Buy fee 0 (HIP-4) · sell
           fee 5 bps on close. Browser agent privkey, no popup.
         </p>
+      </section>
+
+      {/* P3.8 — Step indicator (BasketSheet 와 consistency) */}
+      <section className="flex items-center gap-xs">
+        {(['Edit', 'Review', 'Sign'] as const).map((label, i) => {
+          const idx = (['edit', 'review', 'sign'] as const).indexOf(stepState);
+          const active = i === idx;
+          const done = i < idx;
+          return (
+            <div key={label} className="flex flex-1 items-center gap-xs">
+              <div
+                className={clsx(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold tabular-nums',
+                  active && 'bg-primary text-on-primary',
+                  done && 'bg-primary/50 text-on-primary',
+                  !active && !done && 'bg-divider text-on-surface-subtle',
+                )}
+              >
+                {i + 1}
+              </div>
+              <span
+                className={clsx(
+                  'text-[10px] uppercase tracking-widest',
+                  active ? 'text-on-surface' : 'text-on-surface-subtle',
+                )}
+              >
+                {label}
+              </span>
+              {i < 2 && <div className="h-px flex-1 bg-divider" />}
+            </div>
+          );
+        })}
       </section>
 
       {/* Leg list */}

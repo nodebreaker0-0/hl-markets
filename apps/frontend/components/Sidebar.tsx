@@ -95,8 +95,9 @@ export function Sidebar(): JSX.Element {
 
       <div className="flex-1" />
 
-      {/* Footer — Simple/Pro toggle + network + Connect */}
-      <div className="flex flex-col gap-sm">
+      {/* Footer — Simple/Pro toggle + network + Connect.
+          items-start = 각 child 자기 폭만. ConnectButton 은 self-stretch 로 full-width. */}
+      <div className="flex flex-col items-start gap-sm">
         <UiModeToggle />
         <span
           className={clsx(
@@ -108,7 +109,9 @@ export function Sidebar(): JSX.Element {
         >
           {CURRENT_NETWORK}
         </span>
-        <ConnectButton />
+        <div className="w-full">
+          <ConnectButton />
+        </div>
       </div>
     </aside>
   );

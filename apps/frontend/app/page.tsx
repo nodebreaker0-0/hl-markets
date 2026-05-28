@@ -44,11 +44,6 @@ export default function HomePage(): JSX.Element {
           What do you want to bet on{' '}
           <span className="text-primary">today?</span>
         </h1>
-        <p className="max-w-2xl text-body-md text-on-surface-muted">
-          AI scans every HIP-4 outcome market on Hyperliquid and surfaces the
-          highest expected-value bets. No custody. No analytics. Your AI key
-          stays in your browser.
-        </p>
       </section>
 
       {/* ─── AI Discovery (auto-explore default) ─── */}
@@ -76,23 +71,35 @@ export default function HomePage(): JSX.Element {
       </section>
 
       {/* ─── Browse all markets (secondary CTA) ─── */}
-      <section className="rounded-lg bg-surface-elevated p-lg">
-        <div className="flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between">
+      {/* P3.10 — visual hierarchy 강화: 좌측 stat (markets count) + 우측 dual CTA */}
+      <section className="rounded-xl border border-divider bg-surface-elevated p-lg">
+        <div className="flex flex-col gap-md sm:flex-row sm:items-stretch sm:justify-between">
           <div className="flex flex-col gap-1">
-            <h2 className="text-h2 font-semibold text-on-surface">
+            <span className="text-caption uppercase tracking-widest text-on-surface-muted">
+              Manual browse
+            </span>
+            <h2 className="text-h1 font-bold text-on-surface">
               Browse all markets
             </h2>
             <p className="text-body-sm text-on-surface-muted">
-              Skip AI and explore every active outcome market — Pending,
-              Trading, Historical.
+              Skip AI and explore every active outcome — Pending governance,
+              currently trading, settled history.
             </p>
           </div>
-          <Link
-            href="/markets"
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-surface px-base py-md text-button font-semibold text-on-surface transition-colors hover:bg-surface-overlay"
-          >
-            Open →
-          </Link>
+          <div className="flex shrink-0 flex-col gap-sm sm:items-end sm:justify-center">
+            <Link
+              href="/markets"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-base py-md text-button font-bold text-on-primary transition-colors hover:bg-primary-bright"
+            >
+              Trading markets →
+            </Link>
+            <Link
+              href="/markets/pending"
+              className="text-body-sm text-on-surface-muted transition-colors hover:text-on-surface"
+            >
+              Pending governance · Historical →
+            </Link>
+          </div>
         </div>
       </section>
     </div>
