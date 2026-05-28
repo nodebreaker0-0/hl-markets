@@ -228,29 +228,35 @@ function Gauge({
   const edgeTone =
     Math.abs(edge) < 3 ? 'text-on-surface-muted' : edge > 0 ? 'text-primary' : 'text-accent-down';
   return (
-    <div className="rounded-xl border border-primary/30 bg-primary/5 p-2">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-md">
+      <div className="flex items-baseline justify-between gap-md">
+        <div className="flex flex-col gap-px">
+          <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">
             AI fair
-          </div>
-          <div className="mono text-2xl font-bold text-primary">{fairPct.toFixed(1)}%</div>
+          </span>
+          {/* W-12 — fair % 가 big-number-md hero (D-005). Constitution XIV 정합
+              — reasoning prose 와 동등 weight 로 사용자가 추론 흐름 보도록. */}
+          <span className="mono text-big-number-md font-bold leading-none text-primary tabular-nums">
+            {fairPct.toFixed(1)}%
+          </span>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
+        <div className="flex flex-col items-end gap-px">
+          <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">
             Market
-          </div>
-          <div className="mono text-base text-on-surface">{marketPct.toFixed(1)}%</div>
+          </span>
+          <span className="mono text-mono-big tabular-nums text-on-surface">
+            {marketPct.toFixed(1)}%
+          </span>
         </div>
       </div>
-      <div className="mt-1 flex items-center justify-between text-[10px]">
-        <span className={clsx('font-semibold', edgeTone)}>
+      <div className="mt-sm flex items-center justify-between text-[11px]">
+        <span className={clsx('mono font-semibold tabular-nums', edgeTone)}>
           {edge >= 0 ? '+' : ''}
           {edge.toFixed(1)}pp edge
         </span>
         <span
           className={clsx(
-            'rounded-full px-1.5 py-0 text-[9px] font-semibold uppercase tracking-widest',
+            'rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest',
             confidence === 'high'
               ? 'bg-primary/15 text-primary'
               : confidence === 'medium'

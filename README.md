@@ -340,8 +340,24 @@ Full text in `.specify/memory/constitution.md`. Non-negotiable:
 | **S — AI Basket Discovery (curation)** | ✓ |
 | **T — Domain specialists (light data)** | ✓ |
 | **U — Deep agents (skill + fetch + LLM)** | ✓ |
+| **W — DESIGN.md token + Simple/Pro mode + 컴포넌트 재설계** | ✓ (W-1~20 완료, W-21~22 다국어 검증 pending) |
 | **L — Settled outcome view** | deferred |
 | **mainnet deploy** | next milestone |
+
+### Phase W highlights (2026-05-29)
+
+- `DESIGN.md` v1 = single source of truth (google-labs-code/design.md format).
+  YAML tokens + prose rationale. 25 colors / 14 typography / 6 rounded /
+  10 spacing / 30+ component variants.
+- `tailwind.theme.generated.json` 자동 export 후 `tailwind.config.ts` 가
+  readFileSync 로 import. 사람이 직접 hex 추가 0건 (Constitution D-I).
+- **Simple / Pro 토글** (`lib/uiMode.ts`):
+  - Simple = card hero + big-number + Polymarket/토스/Robinhood DNA. 대중 친화.
+  - Pro = 1-line table-row + mono-md tabular-nums + hairline divider. dense
+    trader / 운영자 view (Bloomberg / Linear / HL trade 톤).
+- `make verify-design` = lint pass + hex-literal detection. Constitution D-X.
+- Visual regression record: `docs/phase-W-visual-regression.md`.
+- Decisions log: `docs/design-decisions-log.md` (D-001~D-020 누적).
 
 ## License
 
