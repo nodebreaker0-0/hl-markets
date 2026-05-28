@@ -8,7 +8,6 @@ import clsx from 'clsx';
 import { Hero } from '@/components/Hero';
 import { ArbAlerts } from '@/components/ArbAlerts';
 import { EndingSoon } from '@/components/EndingSoon';
-import { AIDiscovery } from '@/components/AIDiscovery';
 import { CURRENT_NETWORK, type Network } from '@/lib/network';
 import { SearchBar } from '@/components/SearchBar';
 import { GovernanceCard } from '@/components/GovernanceCard';
@@ -34,7 +33,8 @@ import { computeGovId } from '@/lib/governance/govId';
 import { questionLabel } from '@/lib/outcome-question';
 import type { GovernanceItem } from '@/lib/governance/types';
 
-type Tab = 'active' | 'markets' | 'historical' | 'ai-basket';
+// Phase X-084: AI Basket 탭 제거 — Home (`/`) 와 `/discover` 가 AI 진입점.
+type Tab = 'active' | 'markets' | 'historical';
 
 const REFRESH_MS = 30_000;
 
@@ -91,7 +91,7 @@ function titleFor(item: GovernanceItem): string {
 // sessionStorage key for the last tab so navigating to /o /q /g and pressing
 // Back lands on the same view. Network is build-time, no longer state.
 const SS_TAB = 'hl-markets:tab';
-const TABS: readonly Tab[] = ['active', 'markets', 'historical', 'ai-basket'] as const;
+const TABS: readonly Tab[] = ['active', 'markets', 'historical'] as const;
 
 function readStoredTab(): Tab {
   if (typeof window === 'undefined') return 'active';
@@ -241,7 +241,7 @@ export default function HomePage() {
         <EndingSoon />
 
         <nav className="flex shrink-0 gap-1 overflow-x-auto rounded-full bg-surface-elevated p-1 ring-1 ring-divider self-start">
-          {(['active', 'markets', 'historical', 'ai-basket'] as const).map((t) => (
+          {(['active', 'markets', 'historical'] as const).map((t) => (
             <button
               key={t}
               type="button"
@@ -289,7 +289,7 @@ export default function HomePage() {
             loadedAt={loadedAt}
             onRefresh={() => loadMarkets(network)}
           />
-        ) : tab === 'historical' ? (
+        ) : (
           <HistoricalSection
             items={visible}
             validators={validators}
@@ -300,8 +300,6 @@ export default function HomePage() {
             loadedAt={loadedAt}
             onRefresh={() => loadHistorical(network)}
           />
-        ) : (
-          <AIDiscovery />
         )}
 
         <footer className="border-t border-divider pt-4 text-[11px] text-on-surface-muted">
