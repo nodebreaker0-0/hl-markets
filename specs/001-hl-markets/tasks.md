@@ -1,5 +1,5 @@
 ---
-description: "hl-markets implementation tasks (Phase A~I)"
+description: "hl-markets implementation tasks (Phase A~V)"
 ---
 
 # Tasks: hl-markets
@@ -167,3 +167,189 @@ Phase B의 T001 후 T002~T009 병렬. Phase C의 T020~T022 후 T023~T031 병렬.
 - `lib/wallet/poll-sign.ts` + `apps/api/src/poll/verify.ts` — golden 100/100.
 - `apps/api/src/indexer/*` — settle-detect / govId 결정성 unit 100%.
 - 컴포넌트 — guard 컴포넌트 (NetworkTabs, PollVotePanel) 핵심 유닛.
+
+---
+
+## Phase J — Wallet + Chat + Builder-Code Trade (P1) — ✓ DONE
+
+> Detailed task list lives in Cowork task system (#58–#82).
+> Summary checkpoint: `/q?id=`/`/o?id=` pages have wallet connect, EIP-712
+> sign-in → JWT cookie, chat WebSocket + rate-limit + position-gate,
+> position badge, in-app trade widget with builder code attached.
+> Constitution XI 검증: `/trade-forward` 가 user-signed action 의
+> order/coin/side/sz/px 를 byte-for-byte 보존.
+
+---
+
+## Phase K — Agent flow (popup-free trading) — ✓ DONE
+
+> Detailed task list: Cowork #79–#91. Spec: `contracts/agent.md`.
+
+- [x] **K-1** `lib/agent.ts` — IndexedDB store `hl-markets-agent-v1`. generate / save (ciphertext) / load (decrypt) / delete.
+- [x] **K-2** `lib/signing/agent-sign.ts` — agent privkey 로 HL L1 action 사인 (msgpack hash + secp256k1).
+- [x] **K-3** `lib/signing/user-signed/approveAgent.ts` — `approveAgent` user-signed action.
+- [x] **K-4** `lib/trade.ts` — buy/sell/cancel 가 agent privkey 사인 우선.
+- [x] **K-5** `components/EnableTradingModal.tsx` — 2-step (create agent → approve on HL).
+- [x] **K-6** TradeWidget / SimpleTradeWidget — 첫 trade 시 modal 트리거.
+- [x] **K-7** Agent invalidation / 만료 처리.
+- [x] **K-8** testnet 검증 — popup 1회 (approveAgent) 만, 이후 0.
+
+**Checkpoint K**: 모든 trade 가 wallet popup 0회. IndexedDB inspect 시
+ciphertext 만, 평문 privkey 없음.
+
+---
+
+## Phase L — Multi-leg basket bet — ✓ DONE
+
+> Detailed task list: Cowork #113–#119, #82. Spec: `contracts/basket-bet.md`.
+
+- [x] **L-1** `lib/basket.ts` — localStorage `hl-markets:basket-v1` leg array.
+- [x] **L-2** `lib/trade.ts` — `placeBasketBet(legs, agentSigner)` → 단일 `order` action 의 `orders[]` 다 leg.
+- [x] **L-3** `components/BasketSheet.tsx` — floating drawer + leg editor + ship.
+- [x] **L-4** "Add to basket" 트리거 — SimpleTradeWidget / question page.
+- [x] **L-5** testnet 3-leg basket 검증 — 1 sign → 3 fill → builder fee 3건.
+- [x] **L.fee** HIP-4 outcome 시장 builder fee 정책 조사. 발견: buy=0, sell=100%. evidence: testnet 100-unit sell → 0.0265665 USDC.
+
+**Checkpoint L**: 3-leg basket 1 사인 + builder fee 정책 확정 +
+`docs/HIP4-fee-policy.md` 작성.
+
+---
+
+## Phase M — Basket UI — ✓ DONE
+
+(Phase L 의 `BasketSheet.tsx` 가 Phase M 이기도 — task #117).
+
+---
+
+## Phase N — Portfolio + close + cancel — ✓ DONE
+
+> Detailed task list: Cowork #92–#111. Spec: `contracts/portfolio.md`.
+
+- [x] **N-1** `app/portfolio/page.tsx` — `clearinghouseState` + `openOrders` 표시.
+- [x] **N-2** `lib/portfolio.ts` — data aggregation, holdings × marks.
+- [x] **N-3** `lib/trade.ts` `placeMarketSell` — Cash out slider 동작.
+- [x] **N-4** Cancel open order 버튼.
+- [x] **N-5** Fill toast notification.
+- [x] **N-6** Multi-level walk-the-book (큰 베팅 지원).
+- [x] **N-7** Partial cash out (slider/%input).
+- [x] **N-8** testnet 검증 — 보유 share 표시 + Cash out 50% 정확.
+
+**Checkpoint N**: Portfolio 페이지가 holding + open order + close + cancel
+모두 정상 작동.
+
+---
+
+## Phase O — Autobet — ✓ DONE
+
+> Detailed task list: Cowork #127, #134–#136. Spec: `contracts/autobet.md`.
+
+- [x] **O-1** `lib/autobet.ts` — rule engine + golden fixture.
+- [x] **O-2** `app/autobet/page.tsx` — config form + dry-run + log.
+- [x] **O-3** `components/AutobetTicker.tsx` — global 5-min background scan.
+- [x] **O-4** Acknowledgement modal — "AI advisory only" 명시 (Constitution XIV).
+- [x] **O-5** Daily cap / consecutive-fail emergency stop.
+
+**Checkpoint O**: default-OFF, opt-in 1 acknowledgement, cap 도달 시 즉시
+disable, emergency stop verify.
+
+---
+
+## Phase P — AI Analyst (single outcome) — ✓ DONE
+
+> Detailed task list: Cowork #125, #128–#133. Spec: `contracts/ai-analyst.md`.
+
+- [x] **P-1** `lib/llm-raw.ts` — `analyzeOpenAiRaw` / `analyzeAnthropicRaw` browser fetch.
+- [x] **P-2** `app/settings/page.tsx` — API key 입력 + test.
+- [x] **P-3** `components/AIAnalyzePanel.tsx` — outcome 페이지 통합.
+- [x] **P-4** CSP — `api.openai.com` / `api.anthropic.com` 화이트리스트.
+- [x] **P-5** AIAnalyzePanel 컨텍스트 enrich (orderbook / position).
+- [x] **P-6** Tier 2 web search 통합 (Tavily).
+
+**Checkpoint P**: outcome 페이지에서 Analyze → Network 탭에 provider host
+직접 호출 (backend 통과 X). fair % + edge + reasoning + sources 표시.
+
+---
+
+## Phase Q — Multi-provider AI keys — ✓ DONE
+
+Phase P 의 settings 와 합쳐짐. Tavily / FRED / football-data / OpenWeatherMap
+키도 같은 페이지에 추가.
+
+---
+
+## Phase R — Settings UX consolidation — ✓ DONE
+
+Phase Q 와 합쳐짐.
+
+---
+
+## Phase S — AI Discovery (cross-market) — ✓ DONE
+
+> Detailed task list: Cowork #137–#140. Spec: `contracts/discovery.md`.
+
+- [x] **S-1** `lib/discovery.ts` — `fetchActiveCandidates`, `enrichWithSpecialists`, `askLlmDiscover`.
+- [x] **S-2** `components/AIDiscovery.tsx` — query input + result list + add-to-basket.
+- [x] **S-3** 메인 page 에 Discovery 탭 추가.
+- [x] **S-4** Auto-explore + 1h localStorage cache.
+
+**Checkpoint S**: query 없이 진입 → 30초 이내 ranking list 도달.
+hallucinated outcomeId 0건 (sanitize 가드).
+
+---
+
+## Phase T — Domain specialists — ✓ DONE
+
+> Detailed task list: Cowork #141–#146.
+
+- [x] **T-1** `lib/categorize.ts` — outcome → Category.
+- [x] **T-2** `lib/specialists.ts` (또는 `lib/specialists/*`) — CoinGecko / football-data / FRED / Tavily / OpenWeatherMap.
+- [x] **T-3** `discovery.enrichWithSpecialists` 통합.
+- [x] **T-4** CSP + Settings 추가 API 화이트리스트.
+
+**Checkpoint T**: 도메인별 raw 신호가 discovery candidate 라인에 한 줄 요약
+attach. 외부 API timeout 시 silent fallback.
+
+---
+
+## Phase U — Deep agents — ✓ DONE (testnet 검증 1건 pending)
+
+> Detailed task list: Cowork #147–#155, U-7 (testnet 검증) #156 pending.
+> Spec: `contracts/deep-agents.md`.
+
+- [x] **U-1** `lib/agents/types.ts` — `AnalystOutputSchema` (Zod).
+- [x] **U-2** `lib/agents/skills.ts` — 5 도메인 SKILL prompt (crypto/sports/macro/politics/weather).
+- [x] **U-3** `lib/agents/fetchers.ts` — 도메인별 RawSignals fetcher 확장.
+- [x] **U-4** ~~`lib/agents/analyst.ts` (절대 단일 함수로 분리될 필요 없어 orchestrator 에 흡수)~~.
+- [x] **U-5** `lib/agents/orchestrator.ts` — `analyzeOutcomeDeep` (categorize → fetcher → SKILL → LLM 1회 → safeParse → fold).
+- [x] **U-6** `discovery.enrichWithDeepAnalysts` — top 12 candidate 만 parallel 6.
+- [ ] **U-7** testnet 검증 — BTC outcome 1개 골라서 deep analysis 결과 (fair % + reasoning + sources) sanity check.
+
+**Checkpoint U**: AnalystOutputSchema 통과율 ≥ 95%. fetcher 실패 시 fallback,
+discovery loop stall 0건. cited URL 이 모두 fetcher 의 실제 반환값.
+
+---
+
+## Phase V — Mainnet rollout — pending
+
+- [ ] **V-1** `contracts/mainnet-rollout.md` 갱신 — AI features 운영 고려사항 + Constitution XII-XV 검증 체크리스트.
+- [ ] **V-2** Builder address 의 mainnet `approveBuilderFee` 실행 (builnad).
+- [ ] **V-3** Mainnet build env 의 `NEXT_PUBLIC_BUILDER_*` set.
+- [ ] **V-4** Autobet emergency-stop end-to-end test on mainnet (소액).
+- [ ] **V-5** Monitoring — `/trade-forward` uptime + error rate 알림.
+- [ ] **V-6** 1차 launch announcement (Discord / X — builnad).
+
+**Checkpoint V**: mainnet 에서 trade 1건 정상 forward, basket 1건 정상 forward,
+autobet emergency-stop 정상 작동.
+
+---
+
+## Test Coverage Targets (Phase K-U 추가)
+
+- `lib/agent.ts` — 암호화 round-trip golden fixture.
+- `lib/signing/agent-sign.ts` — Python SDK 의 sign_l1_action 과 byte-equal golden fixture (이미 J 시점 확보).
+- `lib/basket.ts` — localStorage upsert / remove / clear 단위 100%.
+- `lib/trade.ts` `placeBasketBet` — `orders[]` 가 leg 순서 + builder 정확 attach 검증.
+- `lib/autobet.ts` `evaluateCandidate` — 10 known case golden 100/100.
+- `lib/categorize.ts` — 20 sample outcome 의 category mapping 정확.
+- `lib/discovery.ts` — `fetchActiveCandidates` 가 1% < px < 99% 만 포함, sanitize 가 hallucinated id 100% drop.
+- `lib/agents/orchestrator.ts` — fetcher failure / LLM non-JSON / Zod parse fail 3 fallback path 100% 검증.

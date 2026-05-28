@@ -1,9 +1,22 @@
 # Mainnet Rollout — operator runbook
 
-> Phase J.9. testnet 에서 J.5/J.6/J.7/J.8 (Builder Code · Polymarket Simple Mode · Agent flow · Portfolio + cash out) 검증이 완료된 상태에서 mainnet 으로 트래픽을 켜는 절차.
+> Phase V (was J.9). testnet 에서 J.5/J.6/J.7/J.8 (Builder Code · Polymarket Simple Mode ·
+> Agent flow · Portfolio + cash out) **및 K (basket) / M-T (AI Analyst / Discovery / Autobet) /
+> U (Deep agent)** 검증이 완료된 상태에서 mainnet 으로 트래픽을 켜는 절차.
 >
 > 운영자(builnad) 1인 기준. 모든 step 은 우리(we) 가 직접 손으로 실행한다 — CI/CD 자동화 없음.
-> Sibling: `builder-code.md`, `agent.md`, `portfolio.md`. Constitution: `.specify/memory/constitution.md`.
+>
+> Phase 진화 — 본 runbook 이 커버해야 할 신규 영역:
+> - **K** — basket multi-leg trade (한 사인에 N outcome).
+> - **M / P** — user-own-key LLM (OpenAI / Anthropic), Tavily web search.
+> - **Q / R** — sidecar key (FRED / football-data / OpenWeatherMap / CoinGecko), `<AIAnalyzePanel>`.
+> - **S** — AI Basket Discovery (자연어 → 자동 큐레이션).
+> - **T** — Autobet (rule engine, Constitution XIV 의 유일한 예외 경로).
+> - **U** — Deep agents (`analyzeOutcomeDeep` — categorize → fetcher → skill → LLM).
+>
+> Sibling: `builder-code.md`, `agent.md`, `portfolio.md`, `basket-bet.md`, `ai-analyst.md`,
+> `discovery.md`, `autobet.md`, `deep-agents.md`.
+> Constitution: `.specify/memory/constitution.md` (특히 I, XII, XIII, XIV, XV).
 
 ---
 
@@ -223,23 +236,34 @@ psql "$DATABASE_URL" -c 'select count(*) from governance;'
 
 ### 4.1 CSP (frontend)
 
-`next.config.mjs` 의 CSP 가 mainnet host 들과 일치하는지 확인. 최소:
+`next.config.mjs` 의 CSP 가 mainnet host 들과 일치하는지 확인. **Phase V 시점 production CSP**:
 
 ```
 default-src 'self';
 script-src 'self' 'unsafe-inline';                              -- Next.js static export 요건
 connect-src 'self'
-  https://api.hyperliquid.xyz
-  https://api-ui.hyperliquid.xyz
-  wss://api.hyperliquid.xyz
-  https://api.hl-markets.bharvest.io
-  wss://api.hl-markets.bharvest.io;
+  https://api.hyperliquid.xyz                       -- HL info / exchange
+  https://api-ui.hyperliquid.xyz                    -- HL UI info
+  wss://api.hyperliquid.xyz                         -- HL WS feed
+  https://api.hl-markets.bharvest.io                -- backend (governance / chat / trade-forward)
+  wss://api.hl-markets.bharvest.io                  -- backend chat WS
+  https://api.openai.com                            -- Phase M LLM
+  https://api.anthropic.com                         -- Phase M LLM
+  https://api.tavily.com                            -- Phase P web search
+  https://api.stlouisfed.org                        -- Phase Q/T FRED macro
+  https://api.football-data.org                     -- Phase Q/T sports
+  https://api.openweathermap.org                    -- Phase Q/T weather
+  https://api.coingecko.com;                        -- Phase Q/T crypto px
 img-src 'self' data: https://*.hyperliquid.xyz;
 style-src 'self' 'unsafe-inline';
 frame-ancestors 'none';
 ```
 
-> testnet 도메인 (`api.hyperliquid-testnet.xyz`) 은 mainnet 빌드의 CSP 에서 **빼는 게 깔끔하다** — 안 빼도 보안상 치명적이진 않지만 §5 gate 의 정신과 일치시키자.
+체크리스트:
+- [ ] testnet 도메인 (`api.hyperliquid-testnet.xyz`) **mainnet 빌드 CSP 에서 제거**.
+- [ ] 위 11개 host 외 어떤 wildcard 도 없음.
+- [ ] backend host (`api.hl-markets.bharvest.io`) 가 mainnet build env 의 `NEXT_PUBLIC_API_BASE` 와 정확히 일치.
+- [ ] sidecar API 가 사용자 Settings 입력 전이면 fetch 자체가 안 일어나지만, CSP 에는 정적으로 미리 허용해야 함 (런타임 동적 추가 불가).
 
 ### 4.2 CORS (backend)
 
@@ -307,10 +331,87 @@ if (process.env.NODE_ENV === 'production' && process.env.ALLOWED_ORIGINS?.includ
 
 | Constitution | mainnet rollout 관련 |
 |---|---|
-| I. Zero key custody | backend env 에 private key / mnemonic 절대 X — agent 키도 IndexedDB only |
+| I. Zero key custody | backend env 에 private key / mnemonic 절대 X — agent 키도 IndexedDB only. **Phase M+ 확장: LLM API key + sidecar (Tavily/FRED/football-data/OpenWeatherMap/CoinGecko) 도 동일 zero-custody** — backend log 에 일절 안 남음. §5.5 audit. |
 | VIII. No telemetry | mainnet 에 GA / Sentry / RUM 붙이지 말 것 |
 | IX. Host-agnostic backend | Docker 이미지 그대로 — aws-sdk 등 호스트 종속 dep 추가 X |
 | XI. Action immutability | `/trade-forward` 가 action mutate 안 함 — mainnet 에서도 동일 |
+| XII. Agent privkey 브라우저 격리 | mainnet build 의 어떤 network 요청도 agent privkey 를 송출하지 않음. §5.5 audit. |
+| XIII. Builder addr per network | env 에 builder addr 가 network 당 정확히 1개. 런타임 swap 금지. §5.6 audit. |
+| XIV. AI advisory only | autobet 외에 LLM 출력이 사인 트리거 안 함. autobet 은 default OFF + emergency stop. §5.7 audit. |
+| XV. Fetcher schema gate | 모든 sidecar fetcher (Tavily/FRED/football-data/OpenWeatherMap/CoinGecko) 가 timeout + zod schema parse. 외부 API drift 에 죽지 않음. §5.8 audit. |
+
+### 5.5 Constitution XII audit — agent privkey 가 브라우저를 벗어나지 않음
+
+mainnet 빌드 직후 (S3 sync 전), 로컬에서 `out/` 을 서빙하면서 다음 audit 1회:
+
+```bash
+# 1. 빌드 산출물 grep
+grep -ro "indexeddb" out/_next/static/chunks/ | head    # IndexedDB 만 사용해야 함
+grep -ro "/trade-forward" out/_next/static/chunks/ | head  # backend 로 forward 하는 path 만, agent privkey 포함 X
+
+# 2. Chrome DevTools Network 탭 with 'Persist log' 켜고
+#    EnableTradingModal → approveAgent → SimpleTradeWidget 으로 1건 buy 실행.
+#    모든 request body 를 console 로 dump (DevTools "Copy as cURL"):
+#      - api.hyperliquid.xyz: agent signed action — agent privkey 자체는 절대 페이로드에 없어야 함.
+#      - api.hl-markets.bharvest.io/trade-forward: 같은 action 의 byte-for-byte forward.
+#      - 그 외 host 로 가는 요청 0건 (LLM key 시나리오는 §5.6 audit 에서 별도).
+#
+#    한 줄로 grep:
+#      cat captured-network.har | jq '.log.entries[] | .request | {url, postData}' \
+#        | grep -iE 'private|secret|0x[0-9a-f]{64}' && echo FAIL || echo PASS
+```
+
+PASS 가 아니면 mainnet 트래픽 켜지 않는다.
+
+### 5.6 Constitution XIII audit — builder addr per network
+
+```bash
+# 빌드 산출물에 두 network 의 builder addr 가 둘 다 박혀 있지만,
+# 실제 호출 경로에 진입하는 건 BUILDER_ADDR_MAINNET 만.
+# lib/builder.ts 의 export 가 NEXT_PUBLIC_HL_NETWORK 에 따라 선택되었는지:
+node -e "
+  const fs = require('fs');
+  const chunks = fs.readdirSync('out/_next/static/chunks').filter(f => f.endsWith('.js'));
+  for (const f of chunks) {
+    const s = fs.readFileSync('out/_next/static/chunks/'+f, 'utf8');
+    if (s.includes('0xTESTNET_BUILDER_LOWER') && !s.includes('NEXT_PUBLIC_HL_NETWORK')) {
+      // testnet addr 가 mainnet 코드 경로에 진입 가능한 분기? → 추가 분석.
+      console.log('SUSPECT', f);
+    }
+  }
+"
+
+# 런타임 self-check (lib/builder.ts):
+# CURRENT_NETWORK === 'mainnet' && BUILDER_ADDR === BUILDER_ADDR_TESTNET → throw.
+# §5.2 의 assertion 이 mainnet build console 에서 한 번 정상 통과해야 함.
+```
+
+### 5.7 Constitution XIV audit — autobet OFF by default
+
+```bash
+# 1. fresh install (incognito) 에서 /autobet 페이지 진입.
+#    "Autobet is OFF" 배너 + 룰 0개 상태가 default 여야 함.
+# 2. 룰 1개 추가 + Enable 토글 → 5분 wait → DevTools console 에서 autobet scanner tick 로그 확인.
+# 3. Emergency stop:
+#    - /autobet 페이지의 [STOP ALL] 버튼 또는
+#    - 헤더 dropdown 의 [Disable autobet] 항목 → 즉시 모든 룰 OFF + scanner halt.
+# 4. End-to-end: stop 누른 직후의 scanner tick 이 실제로 트레이드를 발행하지 않는지
+#    Chrome Network 로 확인 (api.hyperliquid.xyz POST 0건).
+```
+
+### 5.8 Constitution XV audit — fetcher timeout + schema parse
+
+```bash
+# 각 fetcher 의 unit test (Phase Q tests/llm/fetchers.spec.ts) 가 mainnet 빌드 직전에 green:
+cd apps/frontend && npm run test -- --grep "fetcher"
+
+# 실 mainnet 빌드에 cover 되는 sidecar 4개:
+#   - lib/llm/fetchers/fred.ts        (FRED macro) — timeout 5s, zod schema parse
+#   - lib/llm/fetchers/football-data.ts                — timeout 5s, zod schema parse
+#   - lib/llm/fetchers/openweather.ts                  — timeout 5s, zod schema parse
+#   - lib/llm/fetchers/coingecko.ts                    — timeout 3s, zod schema parse
+# fetcher 가 schema mismatch 시 → caveat 에 기록 + 분석 진행 (block X). 즉, sidecar 죽어도 UI 안 죽음.
+```
 
 ---
 
@@ -367,8 +468,39 @@ docker logs hl-markets-api --since 24h 2>&1 | grep -E '"POST /trade-forward"' | 
 | Builder perp account value | ≥ 150 USDC | 100–150 | < 100 → fee 무시됨, §7.2 |
 | `/trade-forward` 422 rate | < 5% | 5–20% | > 20% → §7.3 |
 | `/trade-forward` 5xx | 0 | 1–2 건/일 | > 5 건/일 |
+| `/trade-forward` p99 latency | < 1s | 1–3s | > 3s → §7 (HL congestion?) |
+| Backend memory RSS | < 300 MB | 300–600 | > 800 MB → leak 의심, restart |
+| Backend DB pool in-use | < 5 / 10 | 5–8 | ≥ 9 → connection 누수, restart |
 | Indexer lastRun | < 2 min ago | 2–10 min | > 10 min → backend 죽음 가능성 |
 | Agent count daily | 임의 (start 0) | — | 갑작스러운 spike → abuse 의심 |
+
+`/trade-forward` uptime + error rate 는 Docker stats + nginx access log 의 `awk` 1줄로 매일 캡쳐
+(§6.2 의 5번 명령). 별도 APM 도구 없음 (Constitution VIII).
+
+### 6.4 HIP-4 builder fee — mainnet 재확인 (testnet finding 검증)
+
+testnet 에서 발견한 사실:
+- **buy fill (taker buy YES/NO) 시 builder fee = 0%** — HL 가 HIP-4 outcome 시장의 buy side 에 fee 안 부과.
+- **sell fill (taker sell) 시 builder fee = 우리가 명시한 bps 그대로 (5 bps 등) 부과.**
+
+mainnet 에서 다시 확인 (운영자 본인 자금으로 1회):
+
+```bash
+# 1. 작은 mainnet outcome 1개 골라서 우리 wallet 에서 buy $10 1건 + sell 전량 1건.
+# 2. HL referral state 의 builderRewards 조회:
+curl -sX POST https://api.hyperliquid.xyz/info \
+  -H 'content-type: application/json' \
+  -d '{"type":"referral","user":"0xMAINNET_BUILDER"}' \
+  | jq '.builderRewards'
+
+# 3. builder fills CSV 다운 (HL UI 의 Referral 페이지 → Export):
+#    - buy fill row: feeUsd 가 0 인지 (또는 매우 작은지)
+#    - sell fill row: feeUsd ≈ notional * bps / 10000 인지 (5 bps = 0.05%)
+# 4. 결과를 contracts/builder-code.md 의 "Empirical findings" 섹션에 갱신.
+```
+
+testnet 결과와 mainnet 결과가 다르면 (HL 정책 변경 가능성) → 사용자 TradeWidget 의 fee 문구를
+**mainnet build 한정으로** 갱신하는 hotfix 가 필요.
 
 ---
 
@@ -496,6 +628,73 @@ HL 본체가 US/제재 지역 차단을 IP 기반으로 한다. 우리도 그에
 
 - backend 에 저장되는 PII 는 **wallet address 뿐** (chat_session, agent_session 등). KYC 정보 없음.
 - DB backup 보관 정책: 매니지드 provider default (보통 7일) 그대로. 별도 백업 안 함 — 데이터 복원성보다 minimalism 우선 (governance/outcome 데이터는 HF 에서 재인덱싱 가능).
+
+---
+
+## 10. LLM cost & sidecar API monitoring (Phase M-T)
+
+### 10.1 운영자(=we) 비용은 0
+
+Phase M-T 의 모든 LLM / sidecar 호출은 **사용자 own key**. 우리 운영자가 OpenAI / Anthropic /
+Tavily / FRED / football-data / OpenWeatherMap / CoinGecko 계정을 운영하지 않는다.
+
+→ Discovery / Analyst / Autobet 트래픽이 늘어도 우리 cost 는 backend 호스팅 비용 + DB 만.
+→ 모니터링 대상은 **사용자가 실수로 우리에게 키를 보내는 경로가 생기지 않았는가** (Constitution I).
+   §5.5 audit 이 매 mainnet 배포마다 1회 강제.
+
+### 10.2 사용자 기대 비용 (Settings 페이지 + about 페이지에 공지)
+
+| 액션 | 1회당 추정 비용 (사용자 LLM bill) |
+|------|------------------------------|
+| outcome Analyst 1번 (Tier 1) | ~$0.001 (gpt-4o-mini) / ~$0.005 (sonnet) |
+| outcome Analyst 1번 (Tier 2 + Tavily) | ~$0.003 + Tavily $0.001 |
+| outcome Analyst 1번 (Tier 3 deep) | ~$0.005 ~ $0.02 (sonnet, more tokens) |
+| Discovery 1 query | ~$0.01 (active outcome batch — 보통 10 outcomes 동시 분석) |
+| Autobet scanner tick (5분당) | rule 1개 ≈ Tier 1 1회 = ~$0.001 |
+
+50 outcomes / day 분석 + discovery 5회 = 사용자 일 비용 ~$0.10. 본인 dashboard 에서 확인.
+
+### 10.3 Builder fee revenue tracking (Phase V+)
+
+mainnet 운영자(우리) 의 유일한 monetary 입금은 builder fee.
+
+```bash
+# 매일 1회 (cron / 손으로):
+curl -sX POST https://api.hyperliquid.xyz/info \
+  -H 'content-type: application/json' \
+  -d '{"type":"referral","user":"0xMAINNET_BUILDER"}' \
+  > /var/log/hl-markets/builder-rewards-$(date +%F).json
+```
+
+- 옵션 A (Phase V) — 손으로 daily 누적, 월말 claim.
+- 옵션 B (Phase V+, optional) — backend 가 매일 cron 으로 위 호출 → DB `builder_daily_rewards` 테이블 적재 → admin 페이지에서 그래프.
+   - 이건 *추가 코드* 인데 Constitution VIII (no telemetry) 와 무관. 운영자 자기 자산 추적은 telemetry 아님.
+
+claim 방법: HL UI 의 Referral 페이지 → "Claim builder rewards". (정확한 매뉴얼 step 은
+HL docs 변동 가능 — 매번 UI 따라가는 게 안전.)
+
+---
+
+## 11. Launch checklist — Phase V 보강
+
+기존 Appendix B 의 J.9 checklist 위에 Phase V 추가 항목:
+
+```
+[ ] §5.5 Constitution XII audit — Network 캡쳐로 agent privkey 누출 0 확인
+[ ] §5.6 Constitution XIII audit — builder addr per network 확인
+[ ] §5.7 Constitution XIV audit — autobet OFF by default + emergency stop E2E
+[ ] §5.8 Constitution XV audit — fetcher unit test green
+[ ] §6.4 HIP-4 fee re-verify — buy=0, sell=bps 확인 (or 변경 사항 문서화)
+[ ] §10.2 사용자 비용 카피가 Settings 페이지에 노출됨
+[ ] §10.3 builder rewards daily snapshot 잡 (옵션 A 손, 옵션 B cron)
+
+testnet replay (mainnet 배포 직전 마지막 점검):
+[ ] 3-leg basket 한 사인 → 3 fill 정상 (Phase K)
+[ ] Analyst Tier 1 → fairPct 결과 카드 노출 (Phase M)
+[ ] Analyst Tier 3 deep → categorize + fetcher 로그 OK (Phase U)
+[ ] Discovery "BTC + AI + 2026 elections" query → 10개 outcome 큐레이션 (Phase S)
+[ ] Autobet 룰 1개 enable → 5분 wait → scan log OK → STOP ALL 후 0 trade (Phase T)
+```
 
 ---
 

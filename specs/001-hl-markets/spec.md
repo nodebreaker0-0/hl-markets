@@ -3,8 +3,10 @@
 **Feature Branch**: `001-hl-markets` (renamed from `001-hl-gov` in task #53)
 **Created**: 2026-05-24
 **Pivoted**: 2026-05-27 (was `hl-gov` — see CHARTER §1 for the pivot note)
-**Status**: Draft v0.3
-**Input**: builnad — "HL 전용 폴리마켓 앱. 진행 중인 outcome 거버넌스 + 현재 trading 마켓 + 정산된 마켓 히스토리. 거버넌스 일반 / delisting / delegations / 가상투표 모두 제외. Polymarket-스타일 multi-option 카드, 옵션별 % chance + 유동성 + 수익 기회 표시. 모바일 친화, testnet/mainnet 둘 다."
+**Last updated**: 2026-05-28 (Phases K-U landed: agent flow, basket bet, AI analyst, discovery, deep agents, autobet)
+**Status**: Draft v0.5
+**Input (original)**: builnad — "HL 전용 폴리마켓 앱. 진행 중인 outcome 거버넌스 + 현재 trading 마켓 + 정산된 마켓 히스토리. 거버넌스 일반 / delisting / delegations / 가상투표 모두 제외. Polymarket-스타일 multi-option 카드, 옵션별 % chance + 유동성 + 수익 기회 표시. 모바일 친화, testnet/mainnet 둘 다."
+**Input (v0.5 expansion)**: builnad — "trade UI 만으로는 안 됨. 다리(leg) 여러 개를 한 번에 사는 basket bet, 사용자 자신의 LLM key 로 AI analyst, 도메인별 specialist + deep agent 로 candidate 마다 fair % 추산, 그리고 그걸 rule 기반으로 자동매수 하는 autobet. 단, key custody 절대 0, AI 는 항상 advisory only, autobet 은 명시 opt-in."
 
 ## User Scenarios & Testing
 
@@ -101,6 +103,154 @@
 3. **Given** sign 완료, **When** backend `/trade-forward`, **Then** HF status 응답 그대로 UI 노출.
 4. **Given** sign 한 action 의 `builder.f > 100` (= 0.1% perp 한도 초과), **When** /trade-forward, **Then** 400 reject (Constitution XI 가드).
 
+### User Story 8 — Trader approves an agent and trades popup-free (P1, Phase K)
+
+**시나리오**: 사용자가 첫 trade 시 "Enable Trading" 2-step onboarding 본다.
+(1) 브라우저가 random 32 byte privkey 생성 → IndexedDB 에 wallet 서명으로
+파생한 키로 암호화 저장. (2) 사용자가 1회 `approveAgent` HL action sign
+→ HF 에 agent 등록. 이후 모든 buy/sell/basket/cancel 은 agent privkey 로
+사인 → popup 0회.
+
+**Why P1**: prediction-market trading 의 빈도 (분당 click) 가 wallet popup
+한계를 넘는다. Polymarket 의 가장 사용자친화적인 부분이 popup-free 인데,
+HL 의 `approveAgent` 가 정확히 그 구조 (HL 자체 trade 사이트 동일 pattern).
+
+**Independent Test**: testnet wallet 으로 agent 한 번 approve 후
+"Buy Yes $10" 5회 연속 → popup 1회 (approveAgent) + nothing more.
+
+**Acceptance Scenarios**:
+1. **Given** 사용자가 처음으로 buy 시도, **When** TradeWidget click,
+   **Then** `<EnableTradingModal>` 노출 (2-step UI: agent 생성 → approve sign).
+2. **Given** approve 완료, **When** 두 번째 buy, **Then** wallet popup 0회,
+   agent privkey 로 즉시 sign → forward.
+3. **Given** 같은 wallet 으로 다른 브라우저 / 다른 tab 에서 trade,
+   **When** trade 시도, **Then** 그 브라우저에 IndexedDB 가 없으므로
+   `<EnableTradingModal>` 다시 노출 (agent 가 device-specific).
+4. **Given** 사용자가 wallet 을 잃었거나 brower clear,
+   **When** trade 시도, **Then** 새 agent 생성 + 새 approve. 기존 agent 는
+   HL 의 `disapproveAgent` 로 정리 가능 (수동).
+5. **Given** IndexedDB 손상 / 키 복호화 실패,
+   **When** trade 시도, **Then** "Agent unavailable, re-enable trading" UI +
+   기존 agent 정리 흐름.
+
+### User Story 9 — Trader builds and ships a multi-leg basket bet (P1, Phase L+M)
+
+**시나리오**: 사용자가 Markets 에서 worldcup 의 France·Brazil·Argentina YES 옵션을
+각각 ‘Add to basket’ → BasketSheet 에 3개 leg 누적 → leg 별 USD size 조정 →
+"Ship basket" → HL `order` action 의 `orders` 배열에 3개 leg 동시 포함 →
+agent privkey 1회 sign → backend forward → HF 가 3 fill 동시 응답.
+
+**Why P1**: prediction-market 의 핵심 UX 는 "여러 outcome 에 분산" 인데
+HL UI 는 outcome 마다 따로 사야 한다. basket 1회 사인은 우리만의 차별점.
+
+**Independent Test**: testnet 에서 3 leg basket (각 $10) 한 번 click →
+HF response 가 3 status row, builder fee row 가 3건 audit log 에 기록.
+
+**Acceptance Scenarios**:
+1. **Given** Markets 에서 outcome card, **When** "Add to basket" click,
+   **Then** localStorage `basket-v1` 에 leg push, BasketSheet badge 갱신.
+2. **Given** BasketSheet open, **When** leg row 에서 size 변경 / 제거,
+   **Then** localStorage 동기화 + projected payout 표 갱신.
+3. **Given** 3 leg, **When** "Ship basket", **Then** `order` action 의
+   `orders: Order[]` 가 3개 leg + 각 leg builder fee 동일 → 1 sign → forward.
+4. **Given** 사인된 action, **When** backend `/trade-forward`,
+   **Then** Constitution XI 가드 (order field 수정 X, builder.b == env,
+   builder.f ≤ max) 통과 후 byte-for-byte forward.
+5. **Given** HF 응답이 partial fail (1 leg fail, 2 leg ok),
+   **When** UI render, **Then** leg row 마다 status (filled / rejected / partial)
+   visual 구분.
+
+### User Story 10 — Trader closes a position partially from Portfolio (P1, Phase N)
+
+**시나리오**: Portfolio 탭 → 보유 outcome row 에서 "Cash out 50%" slider
+→ agent sign → HF sell. open order row 에서 "Cancel" → HF cancel.
+
+**Why P1**: open 만 가능하고 close 가 안 되면 trader 가 다음 라운드에 안 옴.
+
+**Acceptance Scenarios**:
+1. **Given** Portfolio, **When** 진입, **Then** `clearinghouseState` +
+   `openOrders` 조합으로 보유 outcome row + 진행중 order row 별도 섹션 표시.
+2. **Given** 보유 row, **When** "Cash out 50%" slider + confirm,
+   **Then** 보유의 50% 만큼 sell market 으로 agent sign → forward.
+3. **Given** open order row, **When** "Cancel",
+   **Then** `cancel` action 으로 agent sign → forward → HF 응답 표시.
+4. **Given** sell fill 발생, **When** HF userFills push,
+   **Then** Portfolio 즉시 갱신 + Fill toast notification.
+
+### User Story 11 — AI analyzes a single outcome on the market page (P2, Phase P+Q)
+
+**시나리오**: `/o?id=` 진입 → "Analyze with AI" 버튼 → AIAnalyzePanel 펼침 →
+브라우저가 localStorage 의 OpenAI/Anthropic key 로 LLM 직접 호출 →
+domain category (crypto/sports/macro/...) 자동 분류 → 그 도메인의 fetcher 가
+raw 신호 수집 (no LLM) → SKILL prompt + raw 신호 → LLM 1회 호출 →
+AnalystOutput (fairPct, edge, confidence, reasoning bullets, sources,
+rawSignals) → 즉시 UI 표시.
+
+**Why P2**: trader 의 "이 outcome 진짜로 가치가 있나?" 질문에 즉답.
+
+**Acceptance Scenarios**:
+1. **Given** Settings 에 OpenAI key 입력, **When** outcome 페이지 "Analyze",
+   **Then** browser fetch 가 `api.openai.com` 직접 호출 (backend 통과 X
+   — Network 탭에서 확인 가능).
+2. **Given** Anthropic key 만, **When** Analyze, **Then** Anthropic 으로 라우팅.
+3. **Given** key 미입력, **When** Analyze 버튼,
+   **Then** "Set up your AI key" CTA (Settings 링크).
+4. **Given** Analyze 응답, **When** UI render, **Then** fair % + edge bar +
+   confidence (1-5) + reasoning bullets + cited sources (label + URL) +
+   rawSignals 표시.
+5. **Given** LLM 응답이 schema parse 실패, **When** UI,
+   **Then** fallback (marketPct = fairPct, low confidence) + 디버그 메시지.
+
+### User Story 12 — User asks AI to find best bets across all markets (P2, Phase S+T+U)
+
+**시나리오**: Discovery 탭 → 자연어 query ("높은 confidence 50센트 미만"
+또는 빈 query 로 "Auto-explore") → fetchActiveCandidates → 도메인별
+specialist (live crypto price / FRED 데이터 / Tavily 검색 등) parallel
+enrich → top 12 candidate 는 deep-agent 단일 LLM 분석 → 최종 ranking LLM
+call → 도메인 mix 된 top-K list. 각 row: outcome 이름 + market % + fair %
++ edge + confidence + reasoning. 사용자가 각 row 를 basket 에 add.
+
+**Why P2**: HL 의 200+ 활성 outcome 중 사람이 다 보기 불가능. AI 가
+"오늘 가치 있어 보이는 N 개" 를 mixed-domain 으로 추천.
+
+**Acceptance Scenarios**:
+1. **Given** Discovery 탭 첫 진입, **When** auto-explore 활성,
+   **Then** 자동으로 light pipeline 실행 → 1시간 캐시 (localStorage).
+2. **Given** 자연어 query 입력 + Discover, **When** pipeline,
+   **Then** specialist enrich → deep agents (top 12 만) → final rank → list.
+3. **Given** result list, **When** row 의 "Add to basket",
+   **Then** BasketSheet 에 leg 추가 + 추천 quarter-Kelly size 미리 채움.
+4. **Given** result 의 reasoning, **When** UI,
+   **Then** deep-agent 의 reasoning bullets + source 들 표시 (Tavily / FRED 등).
+5. **Given** 모든 candidate edge 0 미만, **When** result,
+   **Then** "No edge found" 표시 (Constitution XIV — 억지 추천 X).
+
+### User Story 13 — User enables autobet with rules and caps (P2, Phase O)
+
+**시나리오**: Autobet 페이지 → daily USDC cap + per-bet max + min edge pp +
+category allow/block + emergency-stop config 입력 → Enable 토글 ON. 이후
+브라우저가 열려 있는 한 5분마다 `AutobetTicker` 가 백그라운드 scan →
+candidates 중 rule 통과 + edge ≥ min 인 것 → agent sign → forward →
+recent log 에 row 추가. cap 도달 / consecutive failure / 사용자 Disable
+시 즉시 stop.
+
+**Why P2**: "AI 가 매수해 줘" 는 prediction-market 의 자연스러운 다음 step
+이지만 안전 가드가 없으면 위험. Constitution XIV 가 가드.
+
+**Acceptance Scenarios**:
+1. **Given** Autobet 페이지 진입, **When** 처음, **Then** Enable = OFF
+   (default-off, Constitution XIV.1).
+2. **Given** rule 입력 + Enable, **When** 5분 ticker,
+   **Then** scan 실행 → 통과 candidate 가 dry-run preview 에 노출.
+3. **Given** dry-run 확인 후 "Execute pending",
+   **When** click, **Then** 각 leg agent sign → forward → log row 추가.
+4. **Given** consecutive 3 fail, **When** ticker, **Then** 즉시 Disable +
+   "Emergency stop — 3 consecutive failures" 통지.
+5. **Given** daily cap 도달, **When** ticker, **Then** Disable + "Daily cap
+   reached" 통지.
+6. **Given** browser tab close, **When** 다음 5분 tick, **Then** 자동 실행 X
+   (browser-only 가 의도; serverless autobet 은 out of scope).
+
 ### Edge Cases
 
 - HF /info endpoint 일시 down → backend indexer 가 마지막 성공 snapshot 유지. UI 가 "last fresh: NN min ago" 표시.
@@ -111,6 +261,12 @@
 - 마켓 정산 시점 → 그 room 의 chat_message 자동 삭제 (CHARTER §3 retention).
 - Builder approval 한도 (사용자 → builder) 초과 trade → HF 가 reject. UI 에 "approve more" 안내.
 - chat 메시지 위조 시도 (JWT 없이 WS 메시지) → backend reject + connection close.
+- (Phase K) IndexedDB 손상 / corruption → agent 사용 불가, 사용자에게 re-enable 안내. backend 가 agent 재발급 시도 X.
+- (Phase L) HF `/exchange` 에서 일부 leg 만 fill, 나머지 reject → UI 가 leg-by-leg status 표시. 자동 retry X.
+- (Phase O) browser tab close 동안에는 autobet scan 안 됨 (browser-only 의도). 사용자가 "background" 옵션 요청해도 거부 (server-side autobet 은 zero-custody 위반).
+- (Phase P-U) LLM provider rate limit / 429 → fallback (cache 또는 "AI temporarily unavailable") + 사용자에게 cost 안내.
+- (Phase T) Tavily 무료 tier (1000 req/mo) 초과 → 안내 + 더 이상 fetch X (Constitution XV — fallback 우아).
+- (Phase U) 한 도메인의 fetcher (e.g. football-data) 가 timeout 또는 500 → 그 candidate 만 deep-agent 결과 없이 progress, 다른 candidate 는 정상.
 
 ## Requirements
 
@@ -235,6 +391,112 @@
 - **FR-085**: System MUST JWT secret 만 환경변수 (`SESSION_JWT_SECRET`, ≥ 32 bytes). 코드/repo 에 0건.
 - **FR-086**: System MUST 만료된 `chat_session` row 일주일 후 자동 삭제 (cron). audit 용 7일 retain.
 
+#### Phase K — Agent flow (popup-free trading) (P1)
+
+> Full spec: `contracts/agent.md` + Constitution XII.
+
+- **FR-150**: System MUST 브라우저가 random 32 byte privkey 생성 — `crypto.getRandomValues` 사용. backend 통과 X.
+- **FR-151**: System MUST IndexedDB DB `hl-markets-agent-v1`, store `agents`, key = `(network, wallet)`. Value = ciphertext + IV + signed challenge string. 평문 privkey 디스크 / 메모리 dump 시 노출 0.
+- **FR-152**: System MUST 암호화 key 는 wallet 의 EIP-191 signature on fixed challenge `"hl-markets-agent:v1:{wallet}:{network}"` 로부터 HKDF 도출. wallet 재서명 = 같은 key.
+- **FR-153**: System MUST 사용자가 처음으로 buy/sell 시도 시 `<EnableTradingModal>` 2-step (a) "Create agent locally" — privkey 생성 + IndexedDB 저장, (b) "Approve agent on Hyperliquid" — `approveAgent` user-signed action sign.
+- **FR-154**: System MUST 모든 trade (buy/sell/cancel/basket) 가 agent privkey 로 사인. wallet popup = 0회.
+- **FR-155**: System MUST tab 열림 시 lazy decrypt — wallet 서명 1회 후 메모리 캐시. tab close = 메모리 wipe.
+- **FR-156**: System MUST agent 복호화 실패 / IndexedDB 없음 → "Re-enable trading" 흐름 (Modal 재진입).
+- **FR-157**: Backend MUST agent privkey 받지 않음. spec 자체에 entry 없음 (Constitution XII).
+
+#### Phase L — Multi-leg basket bet (P1)
+
+> Full spec: `contracts/basket-bet.md`.
+
+- **FR-160**: System MUST `lib/basket.ts` localStorage key `hl-markets:basket-v1` 에 leg 배열 저장. leg = `{outcomeId, side, sizeUsd, addedAt}`.
+- **FR-161**: System MUST `placeBasketBet(legs[], agentSigner)` — HL `order` action 의 `orders` 배열에 leg 별 row 합산. **단일 사인**.
+- **FR-162**: Backend `/trade-forward` MUST `orders: Order[]` 의 모든 leg 에 builder field 가 동일하게 attach (env 기반). 모든 leg byte-for-byte forward.
+- **FR-163**: HF 응답이 leg 별 status (filled / rejected) — UI 에 leg row 와 1:1 매핑하여 시각화.
+- **FR-164**: System MUST basket 전체 size 가 사용자 freeUsdc 초과 시 사인 전 차단.
+- **FR-165**: System MUST HIP-4 builder fee 정책 검증 — buy = fee 0 (HF가 zeroing), sell = fee 100%. 사용자 UI 에 솔직히 표시 (buy 시 "no fee", sell 시 "{x} bps").
+
+#### Phase M — Basket UI (P1)
+
+- **FR-170**: `<BasketSheet>` floating drawer (mobile bottom, desktop right rail). leg count badge + projected payout 표 (each leg 의 $ × 1/marketPct).
+- **FR-171**: leg row = `<outcome name + question> <side> <USD size input> <remove>`.
+- **FR-172**: "Ship basket" 버튼 — 모든 leg 한 번에 사인 + forward. 진행 중 row 별 spinner → 결과 표시.
+- **FR-173**: localStorage 변경에 따라 sheet 즉시 sync (BroadcastChannel 또는 storage event).
+
+#### Phase N — Portfolio + Cash out + Cancel (P1)
+
+> Full spec: `contracts/portfolio.md`.
+
+- **FR-180**: `/portfolio` route — `clearinghouseState` + `openOrders` HF 직접 fetch (10s polling). 보유 outcome row 와 진행중 order row 별도 섹션.
+- **FR-181**: outcome row = `<outcome name> <side> <holding $> <mark $> <unrealized PnL>` + "Cash out" slider.
+- **FR-182**: `placeMarketSell(outcomeId, sideIdx, holdingSize, percentToClose)` — 0-100% slider, agent sign.
+- **FR-183**: open order row = `<outcome name> <side> <px> <sz remaining>` + "Cancel" button → HL `cancel` action.
+- **FR-184**: Fill toast notification — HF userFills push 또는 polling 새 row 시 toast.
+
+#### Phase O — Autobet (P2)
+
+> Full spec: `contracts/autobet.md` + Constitution XIV.
+
+- **FR-190**: `/autobet` 페이지 — config form: `dailyCapUsd, perBetMaxUsd, minEdgePp, allowCategories[], blockCategories[], emergencyStopConsecFails`. 기본값: cap = 0 (=== Disabled), perBetMax = 10, minEdgePp = 5.
+- **FR-191**: System MUST `lib/autobet.ts` 가 `evaluateCandidate(c, rules)` → `{allowed: bool, reason: string, sizeUsd: number}` 순수함수. golden fixture verify gate.
+- **FR-192**: `<AutobetTicker>` 컴포넌트가 global `_app.tsx` 에 mount. 5분 cron (browser-side setInterval) 으로 fetchActiveCandidates → enrichWithSpecialists → askLlmDiscover → evaluateCandidate 마다 통과 시 dry-run 큐에 추가.
+- **FR-193**: 사용자가 명시 토글 = "Execute pending" 또는 "Auto-execute" (별도 토글, 둘 다 default OFF).
+- **FR-194**: 일일 USDC 소비 누적 가 cap 도달 시 Enable 자동 OFF + "Daily cap reached" 토스트.
+- **FR-195**: consecutive `emergencyStopConsecFails` 회 forward 실패 시 Enable 자동 OFF + 이메일/슬랙 알림 X (browser only) + UI 알림.
+- **FR-196**: 모든 autobet 로그 (timestamp, outcomeId, sizeUsd, status, reason) localStorage `hl-markets:autobet-log-v1` 에 ring-buffer (최근 200건).
+- **FR-197**: 첫 autobet enable 시 "I understand this places real trades. AI is advisory only." 명시 acknowledgement modal (Constitution XIV).
+
+#### Phase P — AI Analyst (single outcome) (P2)
+
+> Full spec: `contracts/ai-analyst.md`.
+
+- **FR-200**: System MUST `lib/llm-raw.ts` 의 `analyzeOpenAiRaw(key, system, user, jsonMode)` / `analyzeAnthropicRaw(key, system, user)` — browser fetch 가 provider host 로 직접. backend 통과 X.
+- **FR-201**: CSP allow-list — `api.openai.com`, `api.anthropic.com`, `api.tavily.com`, `api.stlouisfed.org`, `api.football-data.org`, `api.openweathermap.org`, `api.coingecko.com`. backend host 는 별개.
+- **FR-202**: `<AIAnalyzePanel>` outcome 페이지 (`/o?id=`, `/q?id=`) 에 통합. "Analyze with AI" 버튼.
+- **FR-203**: 분석 호출 = `analyzeOutcomeDeep(input, keys)` (Phase U orchestrator) — category 자동 분류 → fetcher → SKILL prompt + raw 신호 → LLM 1회 → `AnalystOutputSchema` 통과.
+- **FR-204**: UI 가 fair % + edge + confidence + reasoning bullets + cited sources (label + URL) + rawSignals 표시.
+
+#### Phase Q — Multi-provider AI keys (P2)
+
+- **FR-210**: Settings 페이지 (`/settings`) — OpenAI + Anthropic + Tavily + FRED + football-data + OpenWeatherMap 키 각 input (password-type). Save 시 localStorage `hl-markets:llm-keys-v1` upsert.
+- **FR-211**: "Wipe all keys" 버튼 — localStorage clear + UI 즉시 reflect.
+- **FR-212**: 키 미입력 시 해당 provider 호출 0 (degrade gracefully).
+- **FR-213**: 키 입력 후 "Test" 버튼 — 가장 가벼운 call (e.g. OpenAI `models` list) 로 키 유효성 검증.
+
+#### Phase R — Settings UX consolidation (P2)
+
+- **FR-220**: `/settings` 페이지 통합 — LLM keys + agent backup (Phase K 의 wallet+IndexedDB 가이드) + autobet rules + 데이터 wipe.
+- **FR-221**: Agent backup section — wallet 분실 시 agent 도 분실됨을 명시. "your trading agent is bound to this browser" warning.
+
+#### Phase S — AI Discovery (cross-market) (P2)
+
+> Full spec: `contracts/discovery.md`.
+
+- **FR-230**: `lib/discovery.ts` `fetchActiveCandidates()` — `outcomeMeta` + `allMids` 조합으로 모든 active YES side outcome 수집. 1% < px < 99% 만 포함 (extreme price 는 edge 0).
+- **FR-231**: `enrichWithSpecialists(candidates, keys)` — 도메인 fetcher (`specialistFor`) 가 light Tier-2 blob (live crypto price, FRED 1-line summary 등) 을 candidate 마다 attach.
+- **FR-232**: `enrichWithDeepAnalysts(candidates, keys, maxConcurrent=6)` — top N (기본 12) candidate 만 `analyzeOutcomeDeep` (Phase U) 호출. parallel 6 in-flight.
+- **FR-233**: `askLlmDiscover({provider, key, query, candidates, topK=6})` — 모든 candidate (deep blob 포함) 를 LLM 에 1회 forward. JSON output `{picks: [{outcomeId, fairPct, edgePp, confidence, reasoning}]}`.
+- **FR-234**: `<AIDiscovery>` 탭 — 자연어 query input + result list + "Add to basket" per row + quarter-Kelly suggested size.
+- **FR-235**: Auto-explore mode — query 빈 채로 진입 시 자동 실행. 결과는 localStorage `hl-markets:discovery-cache-v1` 에 1시간 캐시.
+- **FR-236**: System MUST mixed-domain output — 카테고리별 그룹화 X, 단일 ranking list.
+
+#### Phase T — Domain specialists (Tier-3 signals) (P2)
+
+- **FR-240**: `lib/categorize.ts` `categorize(outcomeName, description, questionTitle)` → `Category` (`crypto`/`sports`/`economics`/`politics`/`weather`/`general`).
+- **FR-241**: `lib/specialists.ts` `specialistFor(category, name, description, keys)` → `SpecialistBlob | null`. 각 specialist 가 자기 도메인 API 호출 (CoinGecko / football-data / FRED 등).
+- **FR-242**: Specialist 결과 = `{source: string, text: string}` light blob, candidate 의 `specialistBlob` 필드에 attach.
+- **FR-243**: 외부 API 실패 시 fallback — candidate 는 그냥 specialistBlob 없이 진행. discovery loop 가 stall X (Constitution XV).
+
+#### Phase U — Deep agents (anthropic/financial-services pattern) (P2)
+
+> Full spec: `contracts/deep-agents.md`.
+
+- **FR-250**: `lib/agents/types.ts` `AnalystOutputSchema` (Zod) — `{fairPct, confidence: "low"|"medium"|"high", reasoning: string[], caveat: string, sources: Source[], rawSignals: Record<string, unknown>}`.
+- **FR-251**: `lib/agents/skills.ts` — 5개 도메인 SKILL prompt (crypto / sports / macro / politics / weather). 각 prompt 가 (a) workflow, (b) guardrails (no hallucination, cite sources), (c) JSON output contract 정의.
+- **FR-252**: `lib/agents/fetchers.ts` — 도메인별 raw signal fetcher. **LLM 없음**, 순수 데이터 (CoinGecko 가격 + Tavily 검색 결과 + ...). `RawSignals = {blob: string, fields: Record<string, unknown>, sources: Source[]}`.
+- **FR-253**: `lib/agents/orchestrator.ts` `analyzeOutcomeDeep(input, keys)` — categorize → fetcher → SKILL prompt + raw blob → LLM 1회 → JSON parse → Zod safeParse → 실패 시 fallback (marketPct = fairPct, low confidence) → 성공 시 fetcher의 sources + fields 를 결과에 fold.
+- **FR-254**: 한 candidate 의 deep analysis 가 timeout / 실패해도 discovery loop 의 다른 candidate 는 계속 진행 (orchestrator 가 fallback 반환).
+- **FR-255**: Discovery 의 최종 ranking call 은 deep blob 을 candidate 라인에 포함 — LLM 이 자체 analyst output 을 그대로 신뢰 가능.
+
 ### Success Criteria
 
 - **SC-001**: Mac local 에서 `docker-compose up postgres && cd apps/api && npm run dev && cd apps/frontend && npm run dev` 로 전체 흐름 작동.
@@ -255,6 +517,28 @@
 - **SC-J-6**: Builder approval 안 한 user 의 첫 trade 시 100% `<ApproveBuilderModal>` 노출.
 - **SC-J-7**: chat_message gzip footprint — 6 개월 운영 후 < 1 GB (메시지 길이 500 char × 평균 트래픽 가정).
 
+#### Phase K-U Success Criteria
+
+- **SC-K-1**: testnet 에서 agent approve 1회 후 buy/sell 10회 연속 — wallet popup 1회 (approveAgent) 만, 이후 0.
+- **SC-K-2**: IndexedDB inspect — `hl-markets-agent-v1` 의 record 가 평문 privkey 를 포함하지 않음 (ciphertext + IV + signed challenge 만).
+- **SC-K-3**: backend audit log — `/trade-forward` 에 agent privkey 가 들어온 적 0건 (Constitution XII).
+- **SC-L-1**: testnet 3-leg basket 사인 1회 → HF 응답 3 fill, builder fee row 3건 (audit log).
+- **SC-L-2**: HIP-4 fee 정책 검증 — testnet 100-unit sell 의 builder fee = 0.0265665 USDC (5 bps 환산), buy 의 builder fee = 0 (`docs/HIP4-fee-policy.md` 의 evidence 재현 가능).
+- **SC-N-1**: Portfolio "Cash out 50%" — agent sign 1회 → HF fill 정확히 50% holding.
+- **SC-N-2**: open order Cancel 1회 → HF response status `success`.
+- **SC-O-1**: Autobet rule engine golden fixture — `evaluateCandidate(c, rules)` 의 10 known case 100/100 match.
+- **SC-O-2**: Emergency stop 검증 — 3 consecutive failure 후 즉시 Disable, 4번째 tick 에 forward 호출 0.
+- **SC-O-3**: Daily cap 검증 — 누적 USDC = cap 도달 후 다음 tick 의 forward 호출 0.
+- **SC-P-1**: AIAnalyzePanel 호출 — Network 탭에서 `api.openai.com` 또는 `api.anthropic.com` 으로 직접 fetch (backend host 거치지 X).
+- **SC-P-2**: `AnalystOutputSchema` 통과율 — 100 outcome 분석 중 schema parse 실패 5건 이하 (fallback path 가드 검증).
+- **SC-Q-1**: Settings 에 OpenAI key 입력 후 wipe → localStorage 의 key 항목 즉시 삭제.
+- **SC-Q-2**: backend audit log — 사용자 LLM key 가 backend 통과 0건 (Constitution I).
+- **SC-S-1**: Discovery "Auto-explore" 첫 진입 → 30초 이내 ranking list 도달 (LLM provider 응답 정상 시).
+- **SC-S-2**: Result 의 outcome 모두가 candidate list 에 존재 (LLM 의 hallucination 0건).
+- **SC-T-1**: Tavily 무료 tier 초과 시 specialist 가 silent skip → discovery loop stall 0건.
+- **SC-U-1**: deep agent 의 한 fetcher (e.g. football-data) timeout → 그 candidate 만 fallback (marketPct = fairPct), 다른 candidate 는 정상 진행.
+- **SC-U-2**: `AnalystOutput.sources` 의 모든 URL 이 fetcher 가 실제 반환한 source (LLM 만들어낸 URL 0건).
+
 ## Out of Scope (모든 Phase)
 
 - validator key 보유 / 서명 / submit (그건 hl-vote-web).
@@ -265,3 +549,11 @@
 - nickname / handle 시스템 — wallet address 만 ID (ENS / HL display name resolve 만).
 - Image / GIF / file upload — 텍스트 only (≤ 500 char).
 - DM / private chat — public market room 만.
+- (Phase K-U 추가)
+- Server-side autobet — browser tab close 시 autobet 멈춤 (Constitution XII/XIV 가드).
+- Backend-managed LLM key — provider 호출은 browser → provider 직접만.
+- 다른 trader 의 agent 사용 / share — agent 는 device-specific.
+- AI 가 사용자 사전동의 없이 거래 — autobet 외 path 자동 거래 X.
+- Multi-domain ranking 그룹화 — Phase S 의 단일 mixed list 가 의도.
+- Image / chart 생성 AI — text 분석만 (cost / privacy).
+- LLM provider 외 third-party AI (Bedrock, Gemini, Mistral 등) — OpenAI + Anthropic 만 첫 단계.

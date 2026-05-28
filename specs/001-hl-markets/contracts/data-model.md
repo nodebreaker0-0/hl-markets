@@ -266,3 +266,71 @@ schema column 추가/제거 시:
 2. plan.md Complexity Tracking 갱신.
 3. 운영 DB 마이그레이션은 builnad 명시 실행 (delegation_matrix §2/§9).
 4. API 응답 shape 영향 시 contracts/api.md 동시 수정.
+
+---
+
+## 8. Client-side data stores (Phase K–U)
+
+> Phase K 이후 **server 는 governance / chat 만** 들고 있고, **agent key / basket / LLM keys / autobet / discovery cache 는 전부 client-side** (IndexedDB + localStorage). 본 절은 그 client 측 schema 와 정책.
+
+### 8.1 IndexedDB — `hl-markets-agent-v1`
+
+지갑별 agent privkey 보관 (Phase K).
+
+```
+DB:     hl-markets-agent-v1
+store:  agents
+keyPath: composite (network, wallet)
+
+record = {
+  network         : 'testnet' | 'mainnet',
+  wallet          : string,        // lowercase 0x address (master wallet)
+  ciphertext      : ArrayBuffer,   // AES-GCM(agent privkey)
+  iv              : ArrayBuffer,   // 12 bytes
+  createdAt       : string,        // ISO-8601
+  wallet_challenge: string,        // "hl-markets-agent:v1:{wallet}:{network}"
+}
+```
+
+- 암호화 키 = HKDF(EIP-191 sign(wallet, wallet_challenge)). 즉 **decrypt 하려면 wallet 가 동일 challenge 를 다시 sign** 해야 함. 브라우저 단독으로는 plain privkey 가 disk 에 절대 남지 않음.
+- 새 wallet 으로 연결 시 새 record 추가. 기존 record 는 그대로.
+- Constitution XII (agent isolation): agent privkey 는 다른 origin / 다른 wallet 으로 절대 노출 X.
+
+### 8.2 localStorage — `hl-markets:*` prefix
+
+모든 key 는 `hl-markets:` namespace + `-vN` suffix.
+
+| Key | Phase | Shape (요약) |
+|---|---|---|
+| `hl-markets:basket-v1`         | L     | `BasketLeg[]` = `{outcomeId, side, sizeUsd, addedAt}[]` |
+| `hl-markets:llm-keys-v1`       | Q/R   | `{openai, anthropic, tavily, fred, footballData, openweather}` (each optional string) |
+| `hl-markets:autobet-rules-v1`  | T     | `AutobetRules` — `contracts/autobet.md` §1 참조 |
+| `hl-markets:autobet-state-v1`  | T     | `AutobetState` = `{dailyUsedUsd, consecFails, lastTickTs}` |
+| `hl-markets:autobet-log-v1`    | T     | ring buffer (cap=200) of `{ts, outcomeId, sizeUsd, status, reason}` |
+| `hl-markets:discovery-cache-v1`| S     | `{network, query, candidates, recs, fetchedAt}` — TTL 1h |
+| `hl-markets:chat-session`      | J*    | legacy. Phase J 초기 localStorage hint 였으나 현재는 JWT HttpOnly cookie 로 이전. 신규 코드 사용 금지. |
+
+> Constitution I: **LLM key 는 server 에 절대 안 감**. fetch 는 client → provider 직접.
+> Constitution XIV: autobet defaults 는 version bump 사이에도 보존 (8.4 migration 정책).
+
+### 8.3 Privacy properties
+
+- client 저장소에 들어가는 PII 는 **wallet address + 사용자 본인 설정** 뿐. 타인 데이터/email/IP 없음.
+- `/settings` 의 **Wipe** 버튼:
+  - `localStorage` 의 `hl-markets:` prefix key 전부 삭제.
+  - IndexedDB `hl-markets-agent-v1` DB 전체 삭제 (`indexedDB.deleteDatabase`).
+  - JWT cookie 는 server `/auth/logout` 호출로 revoke + clear.
+
+### 8.4 Migration policy (client)
+
+- key 이름에 `-vN` suffix 박는다. **새 version = 새 key**. 구 version 은 자동 변환하지 않는다 (data-loss risk).
+- 신규 코드는 새 key 만 read/write. 구 key 는 사용자가 wipe 하거나 브라우저 storage 가 정리할 때까지 dangling 으로 둠.
+- 예: `autobet-rules-v1` → `-v2` 로 바뀔 때 코드는 `-v2` 만 보고, 없으면 default rules (Constitution XIV) 로 초기화.
+
+### 8.5 Constitution alignment 요약
+
+| Article | 적용 |
+|---|---|
+| I — LLM key isolation        | 8.2 `llm-keys-v1` client only, server 미전송 |
+| XII — Agent isolation        | 8.1 IndexedDB AES-GCM + wallet-derived HKDF |
+| XIV — Autobet safety defaults| 8.4 새 version key 시 default rules 강제 적용 |

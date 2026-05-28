@@ -117,11 +117,40 @@ Constitution XI 강제:
 
 CSV 다운로드로 fills 추적 (위 §1 의 stats-data URL).
 
-## 7. Open
+## 7. HIP-4 Builder Fee Asymmetry (Phase L finding, 2026-05-27)
 
-- HIP-4 outcome 마켓에 builder code 가 perp 한도 (0.1%) 인지 spot 한도 (1%) 인지 — HL docs 가 명시 안 함. 첫 mainnet test trade 시 확인.
-- `approveBuilderFee` 의 `maxFeeRate` 가 hl-vote-web 의 EIP-712 signer 와 호환되는지 (chainId 1337 강제). 호환되어야 함. 확인 필요.
-- Phase J.5 의 asset id 매핑 R&D — outcome 의 `#NNNN` → spot universe index.
+testnet 실측 결과 — outcome 시장은 일반 spot/perp 와 다른 정책:
+
+| 행동 | 결과 |
+|---|---|
+| Buy (open long YES / NO) | HF 가 `builder.f` 를 silent zeroing. 사용자 부담 0. |
+| Sell (close) | `builder.f` 100% 부과. seller proceeds 에서 차감. |
+
+evidence: testnet 100-unit sell, `builder.f = 100` (1 bp) → 0.0265665 USDC 가
+builder addr 의 `userFills` row 에 기록.
+
+함의:
+- buy confirm 모달: "No buy fee" 표시 (정직성, Constitution XI).
+- sell confirm 모달: "Builder fee 5 bps (≈ $X)" 표시.
+- 사용자가 활발히 close 할 때만 수익 발생 → AI 가 "open" 부추겨도 운영자 직접 이득 없음 → 인센티브 정합.
+
+`contracts/revenue-model.md` 가 사업 모델 전체 문서. `docs/HIP4-fee-policy.md`
+가 실험 raw output + 재현 절차.
+
+## 8. Resolved questions (was §7 open)
+
+- ~~HIP-4 outcome 마켓에 builder code 가 perp 한도 (0.1%) 인지 spot 한도 (1%) 인지~~ → asymmetric: buy 무료, sell 100% (위 §7).
+- ~~`approveBuilderFee` 의 `maxFeeRate` 가 hl-vote-web 의 EIP-712 signer 와 호환되는지~~ → 호환 확인됨 (J.5 testnet).
+- ~~Phase J.5 의 asset id 매핑 R&D~~ → `meta.universe[].name` 에서 `#NNNN` lookup, indexer 가 cross-verify (Phase E 의 outcome lifecycle 코드 재사용).
+
+## 9. Phase L extension — Multi-leg basket
+
+`order` action 의 `orders[]` 가 N개 leg 일 때:
+- 모든 leg 에 동일 `builder: {b, f}` attach (`builder` 는 action level field 가 아니라 order level 이 아닌, action level 임에 주의).
+- backend `/trade-forward` 가 leg byte 보존 + builder byte 보존 → byte-for-byte forward.
+- HF response 가 `statuses[]` row 별 fill 결과.
+
+자세히는 `contracts/basket-bet.md`.
 
 ## 8. References
 

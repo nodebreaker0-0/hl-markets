@@ -1,6 +1,15 @@
 # News Digest Agent — daily proactive outcome impact spec
 
-> Phase R — 매일 정해진 시각에 cron 이 active outcome 50 ~ 100 개 + 최근 24h 뉴스
+> **⚠️ DEPRECATED (2026-05-28)**: The "daily news digest" model was superseded
+> by the on-demand AI Discovery pipeline (Phase S/T/U). Discovery does the
+> same job — outcome × news × LLM ranking — but: (a) runs when the user asks
+> rather than on a cron, (b) is sandboxed in the browser with the user's own
+> key (no backend cron storing news), and (c) integrates domain specialists
+> (Tier-3 signals) for a stronger signal than headline-only digests. See
+> `contracts/discovery.md` and `contracts/deep-agents.md` for the active
+> spec. This document is kept for historical context only.
+
+> Phase R (originally proposed) — 매일 정해진 시각에 cron 이 active outcome 50 ~ 100 개 + 최근 24h 뉴스
 > 헤드라인을 LLM 에 batch 입력해서 outcome 별 "영향 정도 / 방향 / 1-줄 reasoning" 을
 > 산출하고, 사용자에게 banner / sidebar / 메일로 노출한다.
 >

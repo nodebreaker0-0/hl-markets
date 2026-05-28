@@ -1,11 +1,24 @@
 # Basket Bet — multi-leg single-sign spec
 
-> Phase K — 한 question 내 여러 outcome (또는 cross-question N 개 outcome) 을
-> **한 번의 클릭 + 한 번의 사인** 으로 동시 IOC 매수하는 기능.
+> Phase K (스펙) → Phase L (구현 + testnet 검증 ✅) → Phase M (BasketSheet UI ✅) →
+> Phase S/T/U (AI Discovery "Add to basket" 통합 ✅).
+>
+> 핵심: 한 question 내 여러 outcome (또는 cross-question N 개 outcome) 을
+> **한 번의 클릭 + 한 번의 사인** 으로 동시 IOC 매수.
+>
+> Status: 단일 user-signed `order` action — `orders: Order[]` (N legs) 가 byte-for-byte
+> 그대로 HF `/exchange` 로 forward 된다. backend 는 action root 에 `builder: {b, f}` 만
+> append (per-order 아님). Constitution XI 통과.
 >
 > Source: <https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint#place-an-order> (2026-05-27 fetched).
 > 비교 대상: Polymarket 의 "Add to slip" / Kalshi "multi-event bet" / 일반 sportsbook 의 parlay (단, parlay 는 곱 payout — 우리는 그게 아니라 **독립 leg** 임을 명확히 한다).
-> Sibling: `agent.md` (Phase J.7 사인 분기), `portfolio.md` (Phase J.8 보유 표시), `outcome-market.md` (asset 매핑).
+> Sibling: `agent.md` (Phase J.7 사인 분기), `portfolio.md` (Phase J.8 보유 표시), `outcome-market.md` (asset 매핑), `discovery.md` (Phase S/T/U AI Discovery → basket 다리), `revenue-model.md` (HIP-4 builder fee 비대칭 sourcing).
+
+### Why basket — Polymarket UX gap
+
+- HL 공식 UI 는 outcome 하나 클릭 → 별도 모달 → 사인 1 회. N 개 outcome = 사인 N 회.
+- Polymarket "Add to slip" 은 multi-leg 묶음이지만 settlement 가 별개 (parlay 아님). 우리는 그 UX 를 가져오되 HL native `orders[]` 로 1-sign 으로 압축.
+- AI Discovery (Phase S/T/U) 가 추천하는 5 개 outcome 을 한 번의 사인으로 집행하는 게 product 의 핵심 wow-moment — basket 이 그 다리.
 
 ---
 
@@ -95,6 +108,60 @@ HL `grouping: "na"` 하에서:
 | Constitution XI 영향 | 통과 | **동일하게 통과 — 사인 hash 가 action 전체** |
 
 → Basket 은 J.6 의 자연스러운 일반화. 새 endpoint / 새 사인 타입 추가 없음.
+
+### 1.3 Phase L 확정 — wire shape (실제 송신 payload)
+
+testnet 에서 3-leg basket 1 회 전송한 raw payload (Constitution XI gate 통과):
+
+```jsonc
+// agent privkey 가 사인하는 action — 사용자가 본 그대로 byte-for-byte
+{
+  "type": "order",
+  "orders": [
+    { "a": 10001, "b": true, "p": "0.31", "s": "166", "r": false,
+      "t": { "limit": { "tif": "Ioc" } } },
+    { "a": 10042, "b": true, "p": "0.54", "s": "56",  "r": false,
+      "t": { "limit": { "tif": "Ioc" } } },
+    { "a": 10117, "b": true, "p": "0.51", "s": "20",  "r": false,
+      "t": { "limit": { "tif": "Ioc" } } }
+  ],
+  "grouping": "na",
+  "builder": { "b": "0x<builder-eoa>", "f": 100 }   // ← backend append only
+}
+```
+
+핵심 — **backend `/trade-forward` 의 mutation 범위**:
+
+| 필드 | client 가 채움 | backend 가 append/덮어씀 | 사인 영향 |
+|------|----------------|--------------------------|-----------|
+| `type`, `orders[]`, `grouping` | ✅ | ❌ never touch | client sig 가 이 hash 를 cover |
+| `builder.b`, `builder.f` | ❌ (client 는 비움) | ✅ root level append | client 가 미리 fixed `builder` 셋팅 후 사인. backend 는 *값 일치* 만 verify 후 그대로 forward. |
+| 다른 어떤 필드 | — | ❌ **금지** (Constitution XI) | violation |
+
+→ `builder` 는 per-order 가 아니라 **action root**. 모든 leg 에 동일 적용. golden fixture
+`golden/sign-l1-action.json` 에 `multi-leg-3-with-builder` case 추가됨 (Phase L T8).
+
+---
+
+## 1.4 HIP-4 builder fee 비대칭 — testnet finding (Phase L)
+
+> Full sourcing & math: `contracts/revenue-model.md` §HIP-4 fee 비대칭.
+
+핵심 (요약):
+
+| 방향 | builder fee 실수령 | 의미 |
+|------|--------------------|------|
+| **buy** | **0** | maker side (outcome share 매수) — builder fee 0 |
+| **sell** | **100% of `f`** | taker side (cash out) — `f` (tenths-of-bps) 전액 builder 에 |
+
+evidence: testnet 100-unit sell, `builder.f = 100` (= 1 bp 환산) → 0.0265665 USDC
+가 builder addr 의 `userFills` row 에 기록됨 (2026-05-26 검증). buy 측 동일 trade size 에서는 builder fill row 0.
+
+basket 에 미치는 영향:
+
+- buy-only basket (현재 default) → builder revenue = 0. 사용자 입장 fee 부담 0. **acquisition friction 0**.
+- mixed basket (buy + sell legs) — 현재는 sell leg 가 한 화면에서 같이 묶이지 않음 (portfolio cash out 은 분리 UI). 후속 `Rebalance basket` 가능성 (Open #6).
+- 카피: `Place basket bet — 0 fee` 라벨이 정직함. mainnet sell 시 portfolio 의 cash-out 버튼에 fee 명시 (Phase J.8 polish 5).
 
 ---
 
@@ -207,6 +274,52 @@ HL `grouping: "na"` 하에서:
 - 최대 leg 수 = **20** (client). 그 이상은 chip 에서 차단.
 - 한 outcome 은 한 leg (중복 추가 시 기존 leg 의 $ 만 갱신).
 - localStorage 의 stale 방어: leg 의 `addedAt` 이 7 일 초과면 자동 제거 (해당 outcome 이 settle 됐을 가능성 큼).
+
+### 2.6 Phase M — BasketSheet 구현 확정
+
+Floating drawer 컴포넌트 `components/BasketSheet.tsx` (Phase M T-3):
+
+- **viewport 분기** — `lg:` breakpoint (1024px) 기준:
+  - mobile (< lg): 화면 **하단** 에서 올라오는 sheet. chip tap → translateY(0). swipe-down 으로 close.
+  - desktop (≥ lg): **우측 rail** drawer. width ~ 420px, full-height, header sticky.
+  - 동일 컴포넌트 — Tailwind `lg:fixed lg:right-0 lg:inset-y-0 lg:w-[420px]` + mobile fallback.
+- **floating chip** — viewport 우하단, `legs.length > 0` 일 때만 표시. chip 라벨 = `Basket · ${n} · $${total}`.
+- **leg row 동작**:
+  - `$ 입력` 인라인 edit — debounce 300ms 로 `setUsd(assetId, value)` 호출.
+  - `[×]` 클릭 → `remove(assetId)`. confirm 없음 (즉시).
+  - 검증 메시지 (§4.1) 가 row 아래 빨강/노랑으로 inline.
+- **ship 버튼** — 단일 `Place basket bet` CTA. agent 있으면 popup 0, 없으면 J.7 onboarding modal.
+- **결과 inline** — submit 후 sheet 안에서 leg 별 result row 갱신 (toast 와 중복 노출 X).
+- **localStorage** — 모든 state 변경 시 즉시 persist (write-through). key `hl-markets:basket-v1`.
+
+### 2.7 localStorage schema — `hl-markets:basket-v1`
+
+`lib/basket.ts` 가 single key 로 직렬화:
+
+```ts
+type BasketLeg = {
+  assetId: number;          // HF asset id (HIP-4 outcome)
+  outcomeName: string;      // "France" — 표시 캐시
+  questionTitle: string;    // "2026 World Cup — Champion?" — sheet 부제
+  ask: string;              // "0.30" — basket 담을 당시의 ask (stale 가능, 사용자 reference 용)
+  usd: number;              // 사용자 입력 — invalid 일 수 있음
+  addedAt: number;          // Date.now() — 7d 초과 시 자동 제거
+  source?: "manual" | "discovery" | "topK";  // analytics + UI hint
+  suggestedUsd?: number;    // Phase S/T/U: AI Discovery 가 제안한 quarter-Kelly 금액
+};
+
+type BasketStateV1 = {
+  version: 1;
+  legs: BasketLeg[];
+  updatedAt: number;
+};
+```
+
+핵심 규칙:
+- `version: 1` — 향후 schema 변경 시 migration. 현재는 mismatch → wipe.
+- leg dedupe key = `assetId` (한 outcome 은 한 leg).
+- `source: "discovery"` 인 leg 는 BasketSheet row 에 작은 sparkles 아이콘 + tooltip "Suggested by AI Discovery".
+- `suggestedUsd` 는 ref 만 — 사용자가 `usd` 를 덮어쓰면 그 값을 우선.
 
 ---
 
@@ -378,31 +491,122 @@ Python SDK (`hyperliquid-python-sdk`) 같은 입력으로 사인 → 동일 sig 
 
 ---
 
-## 6. 구현 task graph
+## 6. AI Discovery → Basket 통합 (Phase S/T/U)
 
-| T# | Subject | Depends on |
-|----|---------|------------|
-| K-1 | `lib/basket.ts` — basket state (in-memory + localStorage persist). add/remove/setUsd/clear/list. cross-question 지원. cap=20. | — |
-| K-2 | `lib/trade.ts` 에 `placeBasketBet({ address, legs: [{assetId, usd, bestAskPx, bestAskSz}, ...] })` 추가. orders[] 빌드 + IOC limit clamp + builder field + agent 사인 분기. | K-1, J.7 sign dispatcher |
-| K-3 | `components/BasketSheet.tsx` — floating chip + fullscreen sheet (모바일) / 우측 drawer (데스크탑). leg row + 입력 + 검증 + place 버튼. | K-1 |
-| K-4 | `components/BasketAddButton.tsx` — outcome 카드에 부착하는 `[+]` / `[✓]` 토글 버튼 컴포넌트. | K-1 |
-| K-5 | `SimpleTradeWidget.tsx` 안에 "Add to basket" 보조 액션 추가 (single-leg path 와 공존). | K-1, K-4 |
-| K-6 | Diversify / Top-K 모드 — `components/BasketSheet.tsx` 에 mode toggle + 분배 계산 함수 (`lib/basket.ts` 안의 pure fn). | K-1, K-3 |
-| K-7 | 응답 처리 — `lib/trade.ts` 의 statuses[] parser + leg ↔ result 매핑. 묶음 toast 컴포넌트 변형. | K-2 |
-| K-8 | Golden fixture — multi-leg case 2 개 추가 + Python SDK 매칭 verify (Constitution XI). | K-2 |
-| K-9 | testnet 검증 — 3 leg basket (uniform), 5 leg basket (Top-K), 1 leg 가 $9 일부러 → 거부 확인, 1 leg 가 ask 0 → fill 0 확인. 보유 자산이 portfolio 페이지에 정확히 반영. | all |
-| K-10 | docs — `README.md` 의 Phase 표에 K 추가, `CHANGELOG` / `decisions log` 항목. | K-9 |
+> Spec: `discovery.md`. 본 섹션은 basket 쪽 인터페이스만.
 
-병렬 가능: K-1 끝나면 K-3 / K-4 / K-2 동시 진행. K-8 은 K-2 와 paired.
+Basket 은 **AI Discovery 결과를 집행으로 잇는 다리** 다. AI 가 outcome 을 골라줘도
+사용자가 다시 5 번 클릭/사인하면 wow-moment 가 죽음 — basket 으로 한 번에.
+
+### 6.1 흐름
+
+```
+[ AIDiscovery 결과 카드 ]                   ← Phase S (자연어 → 큐레이션)
+  └ outcome row × 5
+     ├ France · 30¢ · suggested $25         ← Phase T specialist (sports)
+     │   └ rationale: "qualified late, ..."  ← Phase U deep agent skill
+     │   └ confidence: 0.62
+     │   └ quarterKelly($balance, p, ask)
+     │       → suggestedUsd = $25
+     │   └ [ Add to basket ] ─────────────┐
+     ├ Germany · 53¢ · suggested $30      │
+     │   └ [ Add to basket ] ─────────────┤
+     └ ...                                │
+                                          ▼
+                                 lib/basket.ts add({
+                                   assetId, outcomeName, questionTitle,
+                                   ask, usd: suggestedUsd,
+                                   source: "discovery",
+                                   suggestedUsd,
+                                 })
+                                          ▼
+                                 BasketSheet chip → user 검토 → Place
+                                          ▼
+                                 single user-signed `order` action (N legs)
+```
+
+### 6.2 quarter-Kelly suggested size
+
+`lib/agents/analyst.ts` 의 `AnalystOutput.confidence` (= p, 0\~1) + 현재 best ask 로
+classic Kelly 의 1/4 적용:
+
+```ts
+function quarterKelly(balanceUsd: number, p: number, ask: number): number {
+  // outcome share 의 binary 베팅: payout = 1/ask if win
+  const b = (1 - ask) / ask;            // odds (net win per 1 unit stake)
+  const fStar = (b * p - (1 - p)) / b;  // Kelly fraction (positive only)
+  if (fStar <= 0) return 0;
+  const f = fStar / 4;                  // quarter-Kelly (vol guard)
+  const usd = balanceUsd * f;
+  return Math.max(10, Math.round(usd)); // HL min $10 — 그 미만이면 강제 $10
+}
+```
+
+호출: `AIDiscovery` 의 각 result row 가 mount 될 때 evaluated. `balanceUsd` 는
+사용자 perp account value (J.5 fetch). p 가 ask 보다 작으면 `fStar ≤ 0` → row 의
+"Add to basket" 버튼이 회색 + "low edge" 라벨 (그래도 클릭은 허용 — 사용자 판단).
+
+### 6.3 "Add to basket" 버튼 의미론
+
+- AIDiscovery 의 `Add to basket` 클릭 → `lib/basket.ts add({ source: "discovery", suggestedUsd })`.
+- 사용자가 BasketSheet 에서 `$` 칸을 직접 수정 가능 — `suggestedUsd` 는 보존, `usd` 만 덮어쓰기.
+- 한 번에 모든 result 추가 — AIDiscovery 상단의 `Add all to basket` 보조 버튼 (Phase T-4 의 auto-explore 모드와 페어). 무효 edge 는 자동 제외.
+
+### 6.4 Auto-execute (미래)
+
+> 미구현 — Open #7 참조.
+
+가설: `settings.autoExecuteDiscovery: true` 인 사용자는 AIDiscovery 가 완료되는 즉시
+basket 에 채우고 *자동으로 Place* 까지 진행. 안전장치:
+
+- `autoExecuteMaxNotionalUsd` 캡 (예: $50).
+- min confidence (예: 0.55) 미만 leg 자동 제외.
+- 직전 N 분 내에 같은 outcome 으로 auto-execute 한 적 있으면 중복 방지.
+- Phase O autobet 의 rule engine 과 동일 코드 path 재사용 (autobet 도 internally basket 1-leg 임).
 
 ---
 
-## 7. Open questions
+## 7. 구현 task graph
 
-1. **leg 개수 실측 cap**: HL 실제로 한 action 에 몇 개까지 받는지 (msgpack/네트워크 layer 어디서 cut). 20 안에서 안전 가정이지만 K-9 에서 10/20/30 stress test.
+Phase L (landed):
+
+| T# | Subject | Status |
+|----|---------|--------|
+| K-1 | `lib/basket.ts` — state + localStorage (`hl-markets:basket-v1`) | ✅ |
+| K-2 | `lib/trade.ts` `placeBasketBet({ legs })` — orders[] + IOC clamp + builder root append + agent 사인 분기 | ✅ |
+| K-3 | `components/BasketSheet.tsx` — mobile bottom sheet / desktop right rail drawer | ✅ (Phase M) |
+| K-4 | `components/BasketAddButton.tsx` — `[+]` / `[✓]` 토글 | ✅ |
+| K-5 | testnet 검증 — 3 leg → 1 sign → 3 fill | ✅ |
+| K-8 | Golden fixture multi-leg-3-with-builder case + Python SDK verify | ✅ |
+
+Phase S/T/U integration (landed):
+
+| T# | Subject | Status |
+|----|---------|--------|
+| S-2 | AIDiscovery row → `add({ source: "discovery", suggestedUsd })` | ✅ |
+| T-3 | specialist `confidence` 가 `quarterKelly` 입력 | ✅ |
+| U-6 | discovery.ts 가 deep agent `AnalystOutput` 으로 suggestedUsd 산출 | ✅ |
+
+Deferred / 후속 (현재 pending):
+
+| T# | Subject | Note |
+|----|---------|------|
+| K-6 | Diversify / Top-K 모드 — sheet 상단 토글 | Phase L 에서 manual 만 ship. demand 낮음. |
+| K-9 | leg cap 실측 (10/20/30 stress) | testnet 에 한해 3-leg / 5-leg 만 검증. mainnet 전 실측 필요. |
+| Auto-exec | §6.4 — `settings.autoExecuteDiscovery` 플래그 | Open #7 |
+
+---
+
+## 8. Open questions / 후속 토픽
+
+1. **leg 개수 실측 cap**: HL 실제로 한 action 에 몇 개까지 받는지 (msgpack/네트워크 layer 어디서 cut). 20 안에서 안전 가정이지만 mainnet 전 10/20/30 stress test.
 2. **leg 별 partial fill 의 entry 가격 — portfolio entryNtl 합산 방식**: 한 leg 가 부분 fill (예: 100 share 요청, 73 fill) 일 때 entryNtl 가 정확히 73 \* avgPx 로 누적되는지 — Phase J.8 의 `entryNtl` 합산이 동일 outcome 의 multi-leg 누적과 정확히 호환되는지 확인 (이미 J.6 single-leg 에서 동작 — 이론상 OK).
-3. **Diversify weighted formula 의 정밀도**: floor 처리로 1\~3¢ 가 떨어져나가는 dust — 마지막 leg 에 합산할지, 그냥 버릴지. (현재 안: 마지막 leg 에 합산. UI 에는 노출 안 함.)
-4. **chip vs Polymarket 의 "Bet slip" 헤더 버튼** 중 어떤 게 모바일에서 더 자연스러운지 — 둘 다 빌드해서 사용자 1 인 (운영자) 자체 테스트.
+3. **Diversify weighted formula 의 정밀도**: floor 처리로 1\~3¢ 가 떨어져나가는 dust — 마지막 leg 에 합산할지, 그냥 버릴지. (현재 안: 마지막 leg 에 합산. UI 에는 노출 안 함.) — Diversify 모드 자체가 deferred.
+4. **chip vs Polymarket 의 "Bet slip" 헤더 버튼** 중 어떤 게 모바일에서 더 자연스러운지 — 둘 다 빌드해서 사용자 1 인 (운영자) 자체 테스트. → 현재 chip 만 ship.
 5. **Settled outcome 자동 제거**: leg 의 outcome 이 settle 됐는데 사용자가 모르고 담아 둔 채로 Place 누르면? — basket sheet 가 열릴 때 한 번 `outcomeMeta` 로 status check + stale leg 자동 제거 + 사용자 안내 toast.
+6. **Rebalance basket** (sell legs): cash-out 을 multi-outcome 단일 사인 묶음으로 — UI 가 portfolio 쪽에 별도 sheet 로 가야 할지, 같은 chip 에 mode 분기로 가야 할지 미정. HIP-4 sell builder fee 100% 이므로 revenue 영향 큼 (→ `revenue-model.md`).
+7. **Auto-execute on Discovery** (§6.4): `settings.autoExecuteDiscovery` 플래그 + notional cap + min confidence + dedupe window. autobet rule engine 코드 path 재사용 후보.
+8. **Leg dependency rules**: 사용자가 "France 가 fill 되면 Germany 도 fill, 안 되면 둘 다 cancel" 같은 conditional 을 원하는가? — HL native 로는 `grouping: "na"` 가 한계 (atomic broadcast 만, atomic fill 아님). 진짜 conditional 은 CoreWriter 컨트랙트 필요 (현재 outcome 시장 미지원).
+9. **discovery 가 채운 leg 의 `suggestedUsd` divergence 추적**: 사용자가 quarter-Kelly 값을 자주 덮어쓰면 calibration 시그널. analytics 로그 후보.
 
-다음 세션: Open question #1 의 leg cap 실측부터, 그 다음 K-1.
+다음 세션: Open #1 leg cap 실측 + Open #6 Rebalance basket 디자인 스파이크.

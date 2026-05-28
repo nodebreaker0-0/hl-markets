@@ -1,14 +1,27 @@
 # AI Analyst — user-own-key LLM outcome 분석 spec
 
-> Phase M — 사용자가 자기 OpenAI / Anthropic API key 를 입력해서, outcome 페이지
-> 에서 1-click 으로 LLM 에게 "이 outcome 의 공정 확률은?" 을 물어보는 기능.
+> Phase M → P/Q/R (deepened in S/T/U). 사용자가 자기 OpenAI / Anthropic API key
+> 를 입력해서, outcome (`/o?id=`) 및 question (`/q?id=`) 페이지에서 1-click 으로
+> LLM 에게 "이 outcome 의 공정 확률은?" 을 물어보는 기능.
+>
+> Phase 진화 요약:
+> - **M** — 1-shot LLM, market data only, JSON response.
+> - **M-6 / P** — Tavily web search (Tier 2 enrichment) opt-in.
+> - **Q** — multi-provider sidecar keys (FRED / football-data / OpenWeatherMap / CoinGecko).
+> - **R** — `<AIAnalyzePanel>` 컴포넌트로 outcome + question 양쪽 라우트에서 재사용.
+> - **S** — discovery 의 cross-market ranking 이 동일 analyst chain 호출 (`contracts/discovery.md`).
+> - **T** — autobet path 가 같은 분석 결과를 trigger source 로 사용 (`contracts/autobet.md`).
+> - **U** — `analyzeOutcomeDeep` 합류: categorize → fetcher → SKILL prompt → 단일 LLM call
+>          → `AnalystOutputSchema`. Tier 3 enrichment. `contracts/deep-agents.md` 참조.
 >
 > Source: <https://platform.openai.com/docs/api-reference/chat>,
 > <https://docs.anthropic.com/en/api/messages> (2026-05-27 fetched).
 > 비교 대상: Polymarket 의 "Polymarket Insights" (서버 단 LLM, 광고형 코멘트) — 우리는
 > 정반대로 **서버를 안 거치고 사용자가 자기 key 로 직접 호출**한다.
 > Sibling: `agent.md` (Phase J.7 키 격리 모델), `basket-bet.md` (분석 결과로 leg 자동 pre-fill),
-> `outcome-market.md` (LLM 에 먹일 outcome metadata 소스).
+> `outcome-market.md` (LLM 에 먹일 outcome metadata 소스),
+> `discovery.md` (cross-market ranking — analyst chain 재사용),
+> `deep-agents.md` (Phase U deep agent 아키텍처).
 
 ---
 
@@ -175,8 +188,24 @@ connect-src 'self'
             https://api.anthropic.com;
 ```
 
+Phase M-6 / Q / T 누적 (현 mainnet 빌드 CSP):
+```
+connect-src 'self'
+            https://api.hyperliquid.xyz https://api.hyperliquid-testnet.xyz
+            wss://api.hyperliquid.xyz wss://api.hyperliquid-testnet.xyz
+            https://api.openai.com                  -- M
+            https://api.anthropic.com               -- M
+            https://api.tavily.com                  -- M-6 / P (web search)
+            https://api.stlouisfed.org              -- Q / T (FRED macro)
+            https://api.football-data.org           -- Q / T (sports)
+            https://api.openweathermap.org          -- Q / T (weather)
+            https://api.coingecko.com               -- Q / T (crypto px)
+            https://api.hl-markets.bharvest.io      -- backend (governance / chat / trade-forward);
+```
+
 - **only HTTPS 의 정확한 도메인.** wildcard 안 씀.
-- Tavily 등 web-search 옵션은 §5.3 에서 별도 처리 (사용자 opt-in 시 dynamic 추가는 불가 — 미리 정적으로 추가하거나 미지원).
+- 사용자가 Settings 에서 어떤 sidecar 도 입력 안 했으면 해당 fetch 가 트리거되지 않는다 (런타임 키 부재로 skip).
+- 모든 외부 호출은 사용자 브라우저 → provider 직결. Constitution I 의 *"우리 백엔드가 사용자 secret 을 안 본다"* 가 LLM 키 + sidecar 키 전부에 확장 적용 (§7.1 Constitution I extension 참조).
 
 ### 3.3 XSS 위협 모델
 
@@ -235,6 +264,22 @@ export interface AnalysisResult {
   costEstimateUsd: number;
   latencyMs: number;
 }
+
+// Phase U: deep agent 의 정식 출력 shape (zod schema).
+// `analyzeOutcomeDeep` / discovery / autobet 모두 동일 schema 로 parse.
+export const AnalystOutputSchema = z.object({
+  fairPct:    z.number().min(0).max(100),
+  confidence: z.enum(['low', 'med', 'high']),
+  reasoning:  z.array(z.string()).min(1).max(8),
+  caveat:     z.string().optional(),          // "model couldn't fetch X" 등 디버깅용
+  sources:    z.array(z.object({              // Tier 2/3 enrichment 시 인용 출처
+    title: z.string(),
+    url:   z.string().url(),
+    fetchedAt: z.number(),                   // unix ms
+  })).default([]),
+  rawSignals: z.record(z.unknown()).optional(), // fetcher 가 가져온 raw payload (디버그 + audit)
+});
+export type AnalystOutput = z.infer<typeof AnalystOutputSchema>;
 
 export async function analyzeOutcome(
   provider: LlmProvider,
@@ -359,6 +404,36 @@ Estimate the fair probability of YES resolution.
 
 (2026-05 기준 가격, 실제 호출 시 `usage.input_tokens` / `usage.output_tokens` 로 정확 계산 → UI 의 결과 카드 우측 하단에 `~ $0.012` 표시.)
 
+### 4.6 lib/llm-raw.ts — provider 인터페이스 분리 (Phase Q+)
+
+Phase Q 에서 `lib/llm.ts` 를 두 층으로 갈랐다:
+- `lib/llm-raw.ts` — **transport-level provider 추상화.** schema 모르고 JSON 강제만 신경 씀.
+- `lib/llm.ts` — `analyzeOutcome*` family. AnalysisInput → prompt → llm-raw → AnalystOutputSchema parse.
+
+```ts
+// lib/llm-raw.ts
+export async function analyzeOpenAiRaw(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string,
+  jsonMode: boolean,                // true → response_format json_object
+): Promise<{ text: string; usage: { input: number; output: number }; modelId: string; latencyMs: number }>;
+
+export async function analyzeAnthropicRaw(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<{ text: string; usage: { input: number; output: number }; modelId: string; latencyMs: number }>;
+```
+
+이유:
+1. discovery (`contracts/discovery.md`) / autobet (`contracts/autobet.md`) / deep agent (`contracts/deep-agents.md`)
+   가 각자 schema 가 달라서 `analyzeOutcome` 의 strict JSON schema 를 재사용 불가.
+2. raw 함수는 prompt 두 개 + key 한 개만 받는 *얇은* fetch wrapper. caller 가 parse 책임.
+3. provider 추가 시 (Gemini / Mistral) `analyze<Name>Raw` 만 추가하면 됨.
+
+`analyzeOutcome` 은 이제 `analyzeOpenAiRaw(key, SYSTEM_PROMPT, USER_PROMPT(input), true)` 호출 후 zod parse.
+
 ---
 
 ## §5. 데이터 컨텍스트 — LLM 에 무엇을 먹일 것인가
@@ -388,17 +463,47 @@ candles 6h 가 가장 무겁다. 만약 cost 가 부담되면:
 
 Phase M 첫 버전은 **5m × 72 봉 그대로**. 비용 부담 보고 Phase M.1 에서 조정.
 
-### 5.3 Optional — web search 컨텍스트 (Tavily 등)
+### 5.3 Tier 1 / Tier 2 / Tier 3 — enrichment 단계
 
-이건 §9 Open question #1 로 분리. 첫 버전에는 **미포함**.
+Phase M 1차 버전은 market data only 였지만, M-6 (Phase P) 부터 단계별 enrichment 추가:
 
-만약 들어간다면:
-- Settings 에 `Tavily API key` 칸 추가.
-- `analyzeOutcome` 호출 전 `lib/llm/web-search.ts: searchTavily(outcome.name, 5 results) → string` 으로 컨텍스트 빌드.
-- AnalysisInput 의 `webContext` 에 주입.
-- CSP `connect-src` 에 `https://api.tavily.com` 추가.
+| Tier | 들어가는 컨텍스트 | 추가 비용 | Phase |
+|------|---------------------|------------|---------|
+| **Tier 1** | orderbook (`useL2Book`) + 사용자 position (`clearinghouseState`) + outcomeMeta description | LLM 토큰 ~200 (=$0.0001) | M |
+| **Tier 2** | Tier 1 + Tavily web search top-N (outcome.name 으로 검색) | Tavily $0.001 + LLM ~500 토큰 | M-6 / P |
+| **Tier 3** | `analyzeOutcomeDeep` — categorize → fetcher → SKILL prompt → 단일 LLM call → `AnalystOutputSchema` | fetcher API (대부분 무료) + LLM ~2000 토큰 | U |
 
-→ Phase M 1차 버전은 web context **없이**, market data 만으로 분석. 보수적 시작.
+#### Tier 1 — local context
+
+```ts
+// lib/llm/context.ts
+export function buildAnalysisInputTier1(symbol: string, userAddr?: string): AnalysisInput {
+  return {
+    outcome: outcomeMeta(symbol),
+    market: { candles6h: candles6h(symbol), l2: l2Book(symbol) },
+    userPosition: userAddr ? positionFor(userAddr, symbol) : undefined,
+  };
+}
+```
+
+→ outcome 설명 + best bid/ask + 사용자가 이미 들고 있는 share 수 (있으면). 추가 API 호출 1 ~ 2회, 비용 0.
+
+#### Tier 2 — Tavily web search (M-6, Phase P)
+
+- Settings 의 third API key 칸: Tavily.
+- `analyzeOutcome` 호출 전 `lib/llm/web-search.ts: searchTavily(query, 5 results) → string`.
+- CSP `connect-src` 에 `https://api.tavily.com` 영구 포함.
+- Tier 2 는 Settings 에서 `Use web search` 토글 켰을 때만 동작. 토글 OFF 면 Tier 1 fallback.
+
+#### Tier 3 — Phase U deep agent
+
+- `analyzeOutcomeDeep(input)` 가 실제 호출 경로. `analyzeOutcome` 은 deprecated wrapper.
+- Flow: **categorize** (어떤 카테고리 outcome 인지 LLM 한 번) → **fetcher** (카테고리별 데이터 수집:
+  FRED for macro, football-data for sports, OpenWeatherMap for weather, CoinGecko for crypto px,
+  Tavily for general news) → **SKILL prompt** (카테고리별 prompt template 주입) → **LLM 단일 call**
+  → **`AnalystOutputSchema`** zod parse.
+- 자세한 아키텍처: `contracts/deep-agents.md`.
+- 여기서 핵심: deep agent 도 같은 user-own-key 모델. 모든 fetcher API 키는 사용자가 Settings 에서 직접 입력.
 
 ---
 
@@ -528,10 +633,19 @@ Phase M 첫 버전은 **5m × 72 봉 그대로**. 비용 부담 보고 Phase M.1
 
 ### 7.2 기존 조항과의 관계
 
+- **Constitution I (zero key custody) — 확장**: 원래 "agent privkey 가 우리 백엔드를 안 거친다" 였는데,
+  Phase M 부터는 **LLM API key + sidecar API key (Tavily / FRED / football-data / OpenWeatherMap /
+  CoinGecko)** 도 같은 zero-custody 정책 대상. 어떤 user secret 도 우리 backend log 에 안 남는다.
+  mainnet rollout 시 network tab 캡쳐로 audit (`contracts/mainnet-rollout.md` §5 참조).
 - **Constitution III (CSP)**: §3.2 의 `connect-src` 화이트리스트 확장 필수.
 - **Constitution VIII (network split build)**: testnet / mainnet 빌드 모두 동일 LLM 동작. LLM 호출은 HL network 와 무관 → 분기 없음.
 - **Constitution XI (byte-for-byte L1 사인)**: LLM 분석은 사인 경로와 무관. 영향 없음.
 - **Constitution XII (agent builder code)**: LLM 분석은 거래 사인 안 함. 영향 없음.
+- **Constitution XIV (AI advisory only)**: 본 spec 이 발의한 조항. 분석 패널은 pre-fill 까지만.
+  autobet (`contracts/autobet.md`) 만이 명시적 opt-in 으로 자동 트리거 가능. discovery /
+  analyst 패널 자체는 *절대* 자동 사인 안 함.
+- **Constitution XV (fetcher schema gate)**: Phase Q/U 의 sidecar fetcher 가 timeout +
+  zod schema parse 를 거치도록 강제. 외부 API 변동에 클라이언트가 죽지 않도록.
 
 ---
 
@@ -614,6 +728,43 @@ Settings 페이지 하단에 영구 표시:
 
 같은 문구의 축약본을 outcome 페이지의 AI Analyze 결과 카드 우측 하단에 모델별 1 줄로:
 `gpt-4o-mini · ~$0.0019 · 1.8s`
+
+---
+
+## §11. `<AIAnalyzePanel>` — 공통 컴포넌트 (Phase R+)
+
+Phase R 부터 outcome 페이지 (`/o?id=`) 와 question 페이지 (`/q?id=`) 양쪽에서 같은 컴포넌트를 재사용.
+
+```tsx
+// components/AIAnalyzePanel.tsx
+interface Props {
+  symbol: string;
+  outcomeMeta: OutcomeMeta;
+  userAddr?: string;
+  mode: 'outcome' | 'question';        // question 모드는 N개 outcome 의 marginal 비교
+}
+```
+
+- `mode === 'outcome'` — single binary 한 줄 분석 (기존 §6 와 동일).
+- `mode === 'question'` — question 의 모든 outcome (e.g. WC 우승 16팀) 동시 분석.
+  각 outcome 에 대해 `analyzeOutcomeDeep` 을 N번 호출 → 결과 표 + sum-to-100 sanity check.
+- Tier 선택: Settings 의 토글이 결정 (Tier 1 default, Tier 2 with Tavily key, Tier 3 with 모든 sidecar key).
+- discovery 의 cross-market ranking 도 같은 `analyzeOutcomeDeep` chain 호출. 단 결과 카드는
+  `<AIDiscovery>` 가 별도로 렌더 (`contracts/discovery.md` §4).
+
+---
+
+## §12. Cross-reference 요약
+
+| Sibling spec | 관계 |
+|--------------|------|
+| `contracts/agent.md` | agent privkey 격리 모델 — LLM 키도 같은 zero-custody 패턴 사용 |
+| `contracts/basket-bet.md` | 분석 결과의 "Bet YES" 가 BasketSheet 에 leg 추가하는 path |
+| `contracts/outcome-market.md` | LLM 에 먹이는 outcomeMeta 소스 |
+| `contracts/discovery.md` | cross-market ranking 이 동일 `analyzeOutcomeDeep` chain 호출 |
+| `contracts/deep-agents.md` | Phase U deep agent 의 categorize/fetcher/skill 아키텍처 본문 |
+| `contracts/autobet.md` | autobet 이 분석 결과를 trigger 로 사용 — Constitution XIV 의 유일한 예외 경로 |
+| `contracts/mainnet-rollout.md` | LLM/sidecar key 가 prod 빌드에서 백엔드를 안 거치는지 audit (§5) |
 
 ---
 
