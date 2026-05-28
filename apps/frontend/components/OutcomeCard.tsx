@@ -29,6 +29,7 @@ import {
   outcomeLabel,
   expiryCountdown,
 } from '@/lib/outcome-question';
+import { useUiMode } from '@/lib/uiMode';
 
 // ---------------- shared helpers ----------------
 
@@ -77,6 +78,7 @@ function QuestionCardImpl({
   outcomeMap,
   mids,
 }: Extract<Props, { variant: 'question' }>) {
+  const { mode } = useUiMode();
   const options = question.namedOutcomes
     .map((id) => {
       const o = outcomeMap.get(id);
@@ -105,7 +107,39 @@ function QuestionCardImpl({
   const previewOptions = sortedByPct.slice(0, MAX_OPTIONS_PREVIEW);
   const hiddenCount = Math.max(0, options.length - MAX_OPTIONS_PREVIEW);
 
-  // Polymarket 패턴 — left info + right CTA. 모바일 1열, 데스크탑 60/40.
+  // W-17 Pro mode — 1-line dense row. 한 화면에 더 많은 question 표시.
+  if (mode === 'pro') {
+    return (
+      <Link
+        href={`/q?id=${question.question}`}
+        className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-divider px-sm py-sm hover:bg-surface-elevated"
+      >
+        <div className="min-w-0">
+          <div className="truncate text-body-sm font-semibold text-on-surface">
+            {qTitle}
+          </div>
+          {leading && (
+            <div className="truncate text-[10px] text-on-surface-muted">
+              leader: {leading.name}
+            </div>
+          )}
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-muted">
+          {options.length} opts
+        </span>
+        <span className="mono text-mono-md font-semibold tabular-nums text-primary">
+          {leading ? `${(leading.pct * 100).toFixed(0)}%` : '—'}
+        </span>
+        {exp && (
+          <span className={clsx('mono text-[10px] tabular-nums', exp.expired ? 'text-accent-down' : 'text-on-surface-muted')}>
+            {exp.label}
+          </span>
+        )}
+      </Link>
+    );
+  }
+
+  // Simple mode — Polymarket 패턴 (left info + right CTA).
   return (
     <Link
       href={`/q?id=${question.question}`}
@@ -204,6 +238,7 @@ function StandaloneCardImpl({
   outcome,
   mids,
 }: Extract<Props, { variant: 'standalone' }>) {
+  const { mode } = useUiMode();
   const keys = assetKeysFor(outcome.outcome, outcome.sideSpecs.length);
   const pcts = keys.map((k) => readMid(mids, k));
   const primaryPct = pcts[0] ?? null;
@@ -214,6 +249,31 @@ function StandaloneCardImpl({
 
   const label = outcomeLabel(outcome.name, outcome.description ?? '');
   const exp = expiryCountdown(outcome.description);
+
+  // W-17 Pro mode — 1-line dense row.
+  if (mode === 'pro') {
+    return (
+      <Link
+        href={`/o?id=${outcome.outcome}`}
+        className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-divider px-sm py-sm hover:bg-surface-elevated"
+      >
+        <div className="min-w-0 truncate text-body-sm font-semibold text-on-surface">
+          {label}
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-muted">
+          {primaryName}
+        </span>
+        <span className="mono text-mono-md font-semibold tabular-nums text-primary">
+          {primaryPct !== null ? `${(primaryPct * 100).toFixed(1)}%` : '—'}
+        </span>
+        {exp && (
+          <span className={clsx('mono text-[10px] tabular-nums', exp.expired ? 'text-accent-down' : 'text-on-surface-muted')}>
+            {exp.label}
+          </span>
+        )}
+      </Link>
+    );
+  }
 
   return (
     <Link

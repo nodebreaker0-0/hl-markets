@@ -23,6 +23,7 @@ import {
 } from '@/lib/discovery';
 import { loadKeys } from '@/lib/llm';
 import { addLeg as basketAddLeg, clearBasket } from '@/lib/basket';
+import { useUiMode } from '@/lib/uiMode';
 import { pushToast } from '@/lib/toast';
 
 const DEFAULT_QUERIES = [
@@ -333,12 +334,52 @@ function RecommendationCard({
   r: DiscoveryRecommendation;
   onAdd: () => void;
 }): JSX.Element {
+  const { mode } = useUiMode();
   const edgeTone =
     r.edgePp > 5 ? 'text-primary' : r.edgePp < -3 ? 'text-accent-down' : 'text-on-surface-muted';
   const expectedPayout = r.suggestedUsd > 0 && r.marketPct > 0
     ? r.suggestedUsd / (r.marketPct / 100)
     : 0;
 
+  // W-19 Pro mode — dense 1-line table-row. 12+ candidate 한 화면에 보임.
+  if (mode === 'pro') {
+    return (
+      <article className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 border-b border-divider px-sm py-sm hover:bg-surface-elevated">
+        <div className="min-w-0">
+          <div className="truncate text-body-sm font-semibold text-on-surface">
+            {r.outcomeName}
+            <span className="ml-1 text-[10px] font-normal text-on-surface-muted">
+              · {r.questionTitle}
+            </span>
+          </div>
+          <div className="truncate text-[10px] text-on-surface-muted">{r.reasoning}</div>
+        </div>
+        <span className="mono text-mono-sm tabular-nums text-on-surface-muted" title="market">
+          {r.marketPct.toFixed(1)}%
+        </span>
+        <span className="mono text-mono-md font-semibold tabular-nums text-primary" title="fair">
+          {r.fairPct.toFixed(1)}%
+        </span>
+        <span className={clsx('mono text-mono-sm tabular-nums', edgeTone)} title="edge">
+          {r.edgePp >= 0 ? '+' : ''}
+          {r.edgePp.toFixed(1)}pp
+        </span>
+        <span className="mono text-mono-sm tabular-nums text-on-surface" title="suggested USD">
+          ${r.suggestedUsd.toFixed(0)}
+        </span>
+        <button
+          type="button"
+          onClick={onAdd}
+          aria-label={`Add ${r.outcomeName} to basket`}
+          className="rounded-md bg-primary px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-on-primary hover:bg-primary-bright"
+        >
+          +
+        </button>
+      </article>
+    );
+  }
+
+  // Simple mode — original card layout.
   return (
     <article className="rounded-xl border border-divider bg-surface-elevated p-3">
       <div className="flex items-start justify-between gap-3">

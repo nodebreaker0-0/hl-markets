@@ -23,6 +23,7 @@ import { outcomeAssetId, assetIdFromKey } from '@/lib/asset-id';
 import { CURRENT_NETWORK } from '@/lib/network';
 import { pushToast } from '@/lib/toast';
 import { ConcentrationCard } from '@/components/ConcentrationCard';
+import { useUiMode } from '@/lib/uiMode';
 
 const REFRESH_MS = 10_000;
 
@@ -168,15 +169,15 @@ function Placeholder({ text }: { text: string }): JSX.Element {
   );
 }
 
-// Phase W-9 — Portfolio hero (Robinhood DNA).
+// Phase W-9 (Simple) + W-18 (Pro) — Portfolio hero.
 //
-// 화면의 무게중심 = Total value (big-number, mono, tnum). 그 아래 Unrealized
-// PnL 1줄 (arrow + signed amount + %). 그 아래 컴팩트 3 KPI (cost basis,
-// realized, holdings count). Sparkline 은 V2 (시간순 portfolio value
-// snapshot 이 lib/portfolio.ts 에 아직 없음 — Phase W 후속).
+// Simple (Robinhood DNA): 화면의 무게중심 = Total value big-number hero +
+// Unrealized 1줄 + 3 KPI row. 일반 대중 친화.
 //
-// DESIGN.md tokens: hero-summary (bg-surface + p-xl + 한 페이지 1개), big-number,
-// accent-up / accent-down.
+// Pro (Bloomberg DNA): 1-line strip — Total · PnL · 4 KPI 한 줄. dense 운영자
+// view. 위쪽 80% viewport 를 list 에 쓰도록.
+//
+// `useUiMode()` 분기 (W-16/20).
 function PortfolioHero({
   data,
   loading,
@@ -184,6 +185,7 @@ function PortfolioHero({
   data: PortfolioSnapshot | null;
   loading: boolean;
 }): JSX.Element {
+  const { mode } = useUiMode();
   const totals = data?.totals;
   const pnl = totals?.unrealized ?? 0;
   const cost = totals?.cost ?? 0;
@@ -193,6 +195,48 @@ function PortfolioHero({
   const holdingsCount = data?.holdings.length ?? 0;
   const arrow = tone === 'pos' ? '↑' : tone === 'neg' ? '↓' : '';
 
+  // ----- Pro mode — 1-line dense strip -----
+  if (mode === 'pro') {
+    return (
+      <section
+        className={clsx(
+          '-mx-3 border-y border-divider bg-surface-elevated px-lg py-md sm:-mx-4 sm:px-xl',
+          loading && !data && 'opacity-60',
+        )}
+      >
+        <div className="flex flex-wrap items-baseline gap-x-xl gap-y-xs">
+          <ProStat
+            label="Total"
+            value={totals ? fmtUsd(totals.mark) : '—'}
+            big
+          />
+          <ProStat
+            label="Unrealized"
+            value={totals ? `${arrow}${fmtUsd(Math.abs(pnl))} (${fmtPct(pnlPct)})` : '—'}
+            tone={tone}
+          />
+          <ProStat
+            label="Cost basis"
+            value={totals ? fmtUsd(totals.cost) : '—'}
+          />
+          <ProStat
+            label="Realized"
+            value={totals ? fmtUsd(totals.realized) : '—'}
+            tone={
+              totals && totals.realized > 0.01
+                ? 'pos'
+                : totals && totals.realized < -0.01
+                  ? 'neg'
+                  : undefined
+            }
+          />
+          <ProStat label="Holdings" value={data ? `${holdingsCount}` : '—'} />
+        </div>
+      </section>
+    );
+  }
+
+  // ----- Simple mode — Robinhood big-number hero -----
   return (
     <section className="-mx-3 sm:-mx-4">
       <div
@@ -253,6 +297,38 @@ function PortfolioHero({
         </div>
       </div>
     </section>
+  );
+}
+
+/** W-18 Pro inline stat — 1줄 strip 안의 label + mono number. */
+function ProStat({
+  label,
+  value,
+  tone,
+  big,
+}: {
+  label: string;
+  value: string;
+  tone?: 'pos' | 'neg';
+  big?: boolean;
+}): JSX.Element {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">
+        {label}
+      </span>
+      <span
+        className={clsx(
+          'mono font-semibold tabular-nums',
+          big ? 'text-mono-big leading-none' : 'text-mono-md',
+          tone === 'pos' && 'text-accent-up',
+          tone === 'neg' && 'text-accent-down',
+          !tone && 'text-on-surface',
+        )}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 

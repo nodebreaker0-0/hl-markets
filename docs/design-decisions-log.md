@@ -308,4 +308,27 @@ DESIGN.md 의 `step-dot-active` / `step-dot-inactive` 토큰 binding.
 
 ---
 
+## D-020 (2026-05-29) — Pro mode = dense table-row, Simple mode = card
+
+**결정 (W-17/18/19)**: Simple/Pro 의 시각 분리:
+- **Simple** = 카드 박스 (rounded-lg + 16px padding + hover bg-overlay) + big-number
+  hero. Polymarket / 토스 / Robinhood 친화. 한 화면 더 적은 정보, 큰 hierarchy.
+- **Pro** = 1-line table-row (grid-cols + 8px padding + border-b hairline). mono
+  + tabular-nums. 한 화면에 6+ row. Bloomberg / Linear / HL trade 톤.
+
+**적용된 컴포넌트**:
+- `components/OutcomeCard.tsx` — Question / Standalone 둘 다 Pro variant.
+- `app/portfolio/page.tsx` — Portfolio hero. Simple = big-number + 3 KPI grid /
+  Pro = 1-line strip (Total · Unrealized · 4 KPI inline).
+- `components/AIDiscovery.tsx` — RecommendationCard. Simple = card / Pro =
+  6-col grid row (name · mkt% · fair% · edge · $ · add).
+
+**Hook**: `useUiMode()` (lib/uiMode.ts, useSyncExternalStore + localStorage).
+사용자 토글 = SiteHeader 의 UiModeToggle. default `simple` (대중 친화).
+
+**영향**: 각 컴포넌트가 mode-aware. 새 컴포넌트는 두 variant 함께 정의 권장.
+table-row variant 가 mono-sm + mono-md + tabular-nums 사용.
+
+---
+
 ## (다음 결정은 여기 append)
