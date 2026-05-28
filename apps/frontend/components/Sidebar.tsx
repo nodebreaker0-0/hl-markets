@@ -13,20 +13,21 @@ import { CURRENT_NETWORK } from '@/lib/network';
 import { ConnectButton } from '@/components/ConnectButton';
 import { UiModeToggle } from '@/components/UiModeToggle';
 import { loadBasket } from '@/lib/basket';
+import { NavIcon, type NavIconName } from '@/components/NavIcon';
 
 interface NavItem {
   href: string;
   matchPrefix?: boolean;
   label: string;
-  icon: string;
+  icon: NavIconName;
 }
 
 const ITEMS: NavItem[] = [
-  { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/discover', label: 'Discover', icon: '✨', matchPrefix: true },
-  { href: '/basket', label: 'Basket', icon: '🛒', matchPrefix: true },
-  { href: '/portfolio', label: 'Portfolio', icon: '📊', matchPrefix: true },
-  { href: '/settings', label: 'Settings', icon: '⚙', matchPrefix: true },
+  { href: '/', label: 'Home', icon: 'home' },
+  { href: '/discover', label: 'Discover', icon: 'discover', matchPrefix: true },
+  { href: '/basket', label: 'Basket', icon: 'basket', matchPrefix: true },
+  { href: '/portfolio', label: 'Portfolio', icon: 'portfolio', matchPrefix: true },
+  { href: '/settings', label: 'Settings', icon: 'settings', matchPrefix: true },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
@@ -75,9 +76,7 @@ export function Sidebar(): JSX.Element {
                     : 'text-on-surface-muted hover:bg-surface-elevated hover:text-on-surface',
                 )}
               >
-                <span className="text-lg leading-none" aria-hidden>
-                  {item.icon}
-                </span>
+                <NavIcon name={item.icon} size={20} />
                 <span className="flex-1 text-body-md font-semibold">{item.label}</span>
                 {showBadge && (
                   <span

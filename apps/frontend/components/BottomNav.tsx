@@ -12,21 +12,22 @@ import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { loadBasket } from '@/lib/basket';
+import { NavIcon, type NavIconName } from '@/components/NavIcon';
 
 interface NavItem {
   href: string;
   /** match active state — true 면 startsWith */
   matchPrefix?: boolean;
   label: string;
-  icon: string; // emoji or simple glyph (Phase X v1, future = icon component)
+  icon: NavIconName;
 }
 
 const ITEMS: NavItem[] = [
-  { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/discover', label: 'Discover', icon: '✨', matchPrefix: true },
-  { href: '/basket', label: 'Basket', icon: '🛒', matchPrefix: true },
-  { href: '/portfolio', label: 'Portfolio', icon: '📊', matchPrefix: true },
-  { href: '/settings', label: 'Settings', icon: '⚙', matchPrefix: true },
+  { href: '/', label: 'Home', icon: 'home' },
+  { href: '/discover', label: 'Discover', icon: 'discover', matchPrefix: true },
+  { href: '/basket', label: 'Basket', icon: 'basket', matchPrefix: true },
+  { href: '/portfolio', label: 'Portfolio', icon: 'portfolio', matchPrefix: true },
+  { href: '/settings', label: 'Settings', icon: 'settings', matchPrefix: true },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
@@ -78,8 +79,8 @@ export function BottomNav(): JSX.Element {
                   active ? 'text-primary' : 'text-on-surface-muted hover:text-on-surface',
                 )}
               >
-                <span className="relative text-lg leading-none" aria-hidden>
-                  {item.icon}
+                <span className="relative inline-flex" aria-hidden>
+                  <NavIcon name={item.icon} size={22} />
                   {showBadge && (
                     <span
                       className="absolute -right-2 -top-1 min-w-[16px] rounded-full bg-primary px-1 text-[9px] font-bold leading-[16px] text-on-primary"

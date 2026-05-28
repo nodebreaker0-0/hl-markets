@@ -15,7 +15,7 @@ import {
   type OutcomeQuestion,
 } from '@/lib/api';
 import { CURRENT_NETWORK } from '@/lib/network';
-import { expiryCountdown } from '@/lib/outcome-question';
+import { expiryCountdown, questionLabel } from '@/lib/outcome-question';
 
 const REFRESH_MS = 60_000;
 const ENDING_SOON_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -135,7 +135,7 @@ export function EndingSoon(): JSX.Element | null {
                 href={`/q/?id=${r.question.question}`}
                 className="text-sm font-semibold text-on-surface hover:text-status-warn"
               >
-                {r.question.name}
+                {questionLabel(r.question.name, r.question.description ?? '')}
               </Link>
               <div className="mt-0.5 text-[11px] text-on-surface-muted">
                 {r.countdown}

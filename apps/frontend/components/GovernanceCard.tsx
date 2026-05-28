@@ -10,7 +10,11 @@ import clsx from 'clsx';
 import { renderers } from '@/lib/governance/renderers';
 import type { GovernanceItem, RendererContext } from '@/lib/governance/types';
 import { QuorumBar } from '@/components/QuorumBar';
-import { computeQuorum } from '@/lib/governance/thresholds';
+import {
+  computeQuorum,
+  STAKE_THRESHOLD,
+  COUNT_THRESHOLD,
+} from '@/lib/governance/thresholds';
 import { splitVoters, buildValidatorIndex } from '@/lib/validators';
 import { useUiMode } from '@/lib/uiMode';
 import type { Variant } from '@/lib/governance/classify';
@@ -52,12 +56,11 @@ export function GovernanceCard({ item, ctx }: GovernanceCardProps) {
   // quorum 진행도 — primary metric. stake 와 count 가 둘 다 통과해야 한다는
   // 의미를 단일 % 로 압축: min(stake/20%, count/50%) × 100 — 둘 중 더 뒤처진
   // 쪽 기준 진행. 100% 이상 = 통과 임박/통과.
-  const stakeProgress = quorum.stakeThreshold > 0
-    ? quorum.stakeReached / quorum.stakeThreshold
-    : 0;
-  const countProgress = quorum.countThreshold > 0
-    ? quorum.countReached / quorum.countThreshold
-    : 0;
+  // X-099 hotfix: 기존 코드가 존재하지 않는 `quorum.stakeThreshold` 를 참조해서
+  // 항상 0% 가 나왔다. computeQuorum 은 stakeRatio (0..1) / countRatio (0..1) 만
+  // 노출 → STAKE_THRESHOLD / COUNT_THRESHOLD 상수로 나눠 progress 계산.
+  const stakeProgress = STAKE_THRESHOLD > 0 ? quorum.stakeRatio / STAKE_THRESHOLD : 0;
+  const countProgress = COUNT_THRESHOLD > 0 ? quorum.countRatio / COUNT_THRESHOLD : 0;
   const progressPct = Math.round(Math.min(stakeProgress, countProgress) * 100);
   const expired = item.expireTime - Date.now() < 0;
   const nearlyPass = progressPct >= 100;
