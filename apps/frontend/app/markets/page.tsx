@@ -516,38 +516,55 @@ function HistoricalSection(props: {
  *  Surfaces the winner (settledNamedOutcomes[0]) when known. */
 function SettledQuestionCard({ q }: { q: BackendOutcomeQuestionRow }) {
   const title = questionLabel(q.name, q.description ?? '');
-  const winnerId = q.settledNamedOutcomes[0] ?? null;
+  // T-X-108 — "first settled namedOutcome" 은 winner 아님 (단순 settle event 순).
+  // 정확한 winner 는 outcome-level winnerSide 가 필요 → 카드에서 fetch 안 함
+  // (N+1 비용). 대신 "named outcome resolved Yes / fallback wins" 2-state
+  // 구분만 표시하고, 정확한 winner 이름은 detail (/q/?id=…) 페이지에서.
+  const namedWinnerSettled = q.settledNamedOutcomes.length > 0;
   const settledAt = q.settledAt ? new Date(Number(q.settledAt)) : null;
   return (
     <Link
-      href={`/q?id=${q.questionId}`}
-      className="flex flex-col gap-2 rounded-2xl border border-divider bg-surface-elevated p-4 transition-colors hover:border-primary/50"
+      href={`/q/?id=${q.questionId}`}
+      className={clsx(
+        'group flex flex-col gap-md rounded-xl border bg-surface-elevated p-base',
+        'transition-colors',
+        namedWinnerSettled
+          ? 'border-primary/30 hover:border-primary/60'
+          : 'border-divider hover:border-status-warn/50',
+      )}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold leading-snug text-on-surface">
+        <h3 className="line-clamp-2 text-h2 font-semibold leading-snug text-on-surface">
           {title}
         </h3>
-        <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-muted ring-1 ring-divider">
-          resolved
+        <span
+          className={clsx(
+            'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ring-1',
+            namedWinnerSettled
+              ? 'bg-primary/15 text-primary ring-primary/40'
+              : 'bg-status-warn/15 text-status-warn ring-status-warn/40',
+          )}
+        >
+          {namedWinnerSettled ? '✓ Settled' : '⚠ Fallback'}
         </span>
       </div>
 
-      {winnerId !== null ? (
-        <div className="rounded-xl border border-primary/40 bg-primary/10 p-2 text-[12px] text-primary">
-          <span className="mr-1 text-[10px] uppercase tracking-widest">winner</span>
-          outcome <code className="mono">#{winnerId}</code>
+      {namedWinnerSettled ? (
+        <div className="text-body-sm text-on-surface-muted">
+          One of {q.namedOutcomes.length} named options resolved Yes.{' '}
+          <span className="text-primary group-hover:underline">Open to see winner →</span>
         </div>
       ) : (
-        <div className="text-[11px] text-on-surface-muted">
-          resolved with no winning option (fallback wins)
+        <div className="text-body-sm text-on-surface-muted">
+          No named option resolved Yes — fallback option paid out (oracle
+          fallback or all-No outcome).{' '}
+          <span className="text-primary group-hover:underline">Open details →</span>
         </div>
       )}
 
-      <div className="text-[10px] text-on-surface-muted">
-        {q.namedOutcomes.length} options · fallback #{q.fallbackOutcome}
-      </div>
-      <div className="flex justify-between text-[10px] text-on-surface-muted">
+      <div className="mt-auto flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-caption text-on-surface-muted">
         <span>question #{q.questionId}</span>
+        <span>{q.namedOutcomes.length} options</span>
         {settledAt && (
           <span>
             settled{' '}

@@ -19,11 +19,15 @@ import {
   fetchAllMids,
   fetchL2Book,
   fetchCandleSnapshot,
+  fetchBackendQuestionDetail,
+  fetchBackendOutcomeDetail,
   type OutcomeMetaEntry,
   type OutcomeQuestion,
   type AllMidsResponse,
   type L2BookResponse,
   type Candle,
+  type BackendOutcomeQuestionRow,
+  type BackendOutcomeRow,
 } from '@/lib/api';
 import {
   questionLabel,
@@ -41,6 +45,63 @@ const CANDLE_WINDOW_MS = 24 * 60 * 60 * 1000;
 function readMid(mids: AllMidsResponse, key: string): number | null {
   const v = mids[key];
   return v !== undefined && v !== null ? Number(v) : null;
+}
+
+/** Phase L follow-up — pull a settled question + every member outcome from the
+ *  Postgres indexer (Phase H.3). Used when HF outcomeMeta has expired the
+ *  question (HF only keeps live + recently-resolved markets). Returns null on
+ *  any backend failure so the caller can show a real "not found" error.
+ *
+ *  We reconstruct `OutcomeQuestion` and `OutcomeMetaEntry[]` to match the
+ *  shape the rest of the page expects, plus a winner map so the settled view
+ *  can highlight the winning option without depending on synthetic mids. */
+async function loadSettledQuestionFromBackend(
+  n: Network,
+  qid: number,
+): Promise<{
+  question: OutcomeQuestion;
+  outcomes: OutcomeMetaEntry[];
+  winnerByOutcome: Map<number, boolean>;
+} | null> {
+  let qRow: BackendOutcomeQuestionRow;
+  try {
+    qRow = await fetchBackendQuestionDetail(n, qid);
+  } catch {
+    return null;
+  }
+  const memberIds = [...qRow.namedOutcomes, qRow.fallbackOutcome];
+  const rows = await Promise.all(
+    memberIds.map((id) =>
+      fetchBackendOutcomeDetail(n, id).catch((): BackendOutcomeRow | null => null),
+    ),
+  );
+  const outcomes: OutcomeMetaEntry[] = [];
+  const winnerByOutcome = new Map<number, boolean>();
+  for (const row of rows) {
+    if (!row) continue;
+    outcomes.push({
+      outcome: row.outcomeId,
+      name: row.name,
+      description: row.description ?? '',
+      sideSpecs: row.sideSpecs,
+      quoteToken: row.quoteToken,
+    });
+    if (row.winnerSide !== null) {
+      // winnerSide === 0 → Yes side won (this outcome 's Yes share = $1).
+      // winnerSide === 1 → No side won → this outcome 's Yes share = $0.
+      winnerByOutcome.set(row.outcomeId, row.winnerSide === 0);
+    }
+  }
+  if (outcomes.length === 0) return null;
+  const question: OutcomeQuestion = {
+    question: qRow.questionId,
+    name: qRow.name,
+    description: qRow.description ?? '',
+    fallbackOutcome: qRow.fallbackOutcome,
+    namedOutcomes: qRow.namedOutcomes,
+    settledNamedOutcomes: qRow.settledNamedOutcomes,
+  };
+  return { question, outcomes, winnerByOutcome };
 }
 
 function assetKeyYes(outcomeId: number): string {
@@ -66,6 +127,12 @@ function QuestionInner() {
   const validId = questionId !== null && Number.isFinite(questionId);
 
   const [question, setQuestion] = useState<OutcomeQuestion | null>(null);
+  /** Phase L follow-up — backend-resolved settled question. When HF
+   *  outcomeMeta lost the question, we hydrated from Postgres rows; the
+   *  question is necessarily settled (HF only purges resolved markets). */
+  const [settledFromBackend, setSettledFromBackend] = useState(false);
+  /** outcomeId → won?  populated only on the backend fallback path. */
+  const [backendWinnerByOutcome, setBackendWinnerByOutcome] = useState<Map<number, boolean>>(new Map());
   const [outcomes, setOutcomes] = useState<OutcomeMetaEntry[]>([]);
   const [mids, setMids] = useState<AllMidsResponse>({});
   const [selectedOutcomeId, setSelectedOutcomeId] = useState<number | null>(null);
@@ -86,13 +153,46 @@ function QuestionInner() {
       try {
         const [meta, am] = await Promise.all([fetchOutcomeMeta(n), fetchAllMids(n)]);
         const q = meta.questions.find((x) => x.question === qid);
+
+        // Phase L follow-up — settled questions disappear from HF outcomeMeta
+        // a few hours after settlement. Fall back to backend (Postgres indexer)
+        // which retains the full history + per-outcome winnerSide flag.
         if (!q) {
-          setQuestion(null);
-          throw new Error(`Question #${qid} not found in outcomeMeta`);
+          const fallback = await loadSettledQuestionFromBackend(n, qid);
+          if (!fallback) {
+            setQuestion(null);
+            throw new Error(`Question #${qid} not found (live HF + backend miss).`);
+          }
+          setQuestion(fallback.question);
+          setOutcomes(fallback.outcomes);
+          setSettledFromBackend(true);
+          setBackendWinnerByOutcome(fallback.winnerByOutcome);
+          // Synthetic mids from backend winnerSide (Yes side winner → mid=1,
+          // others → 0). So `pct(opt.yesPct)` 가 settled state 와 일치.
+          const synthMids: AllMidsResponse = { ...am };
+          for (const o of fallback.outcomes) {
+            const k = assetKeyYes(o.outcome);
+            if (synthMids[k] === undefined) {
+              // o.sideSpecs[0] is Yes by convention; backendOutcome.winnerSide
+              // 0 = Yes won. winnerByOutcome already encodes this.
+              const won = fallback.winnerByOutcome.get(o.outcome);
+              synthMids[k] = won === true ? '1' : won === false ? '0' : '0.5';
+            }
+          }
+          setMids(synthMids);
+          // settled = no orderbook / no candle.
+          setAskByOutcome(new Map());
+          setBook(null);
+          setCandles([]);
+          setLoadedAt(Date.now());
+          return;
         }
+
         setQuestion(q);
         setOutcomes(meta.outcomes);
         setMids(am);
+        setSettledFromBackend(false);
+        setBackendWinnerByOutcome(new Map());
 
         const pickId = selectedId ?? q.namedOutcomes[0] ?? null;
         const now = Date.now();
@@ -187,16 +287,31 @@ function QuestionInner() {
   const qTitle = questionLabel(question.name, question.description ?? '');
   const exp = expiryCountdown(question.description);
 
-  // Phase L — settled state. Settled = backend marked all namedOutcomes as
-  // settled OR every option has a hard-resolved mid (0.0 or 1.0). Winner is
-  // the option whose Yes mid is ≥ 0.99 (the resolution price). Null otherwise.
+  // Phase L — settled state. allSettled is true when EITHER the live backend
+  // has marked every namedOutcome settled, OR HF outcomeMeta dropped the
+  // question entirely (backend fallback path = certainly settled).
   const settledSet = new Set(question.settledNamedOutcomes);
-  const allSettled =
+  const everyNamedSettled =
     question.namedOutcomes.length > 0 &&
     question.namedOutcomes.every((id) => settledSet.has(id));
-  const winnerId = allSettled
-    ? options.find((o) => (o.yesPct ?? 0) >= 0.99)?.outcomeId ?? null
-    : null;
+  const allSettled = everyNamedSettled || settledFromBackend;
+  // Winner detection — prefer the authoritative backend `winnerSide` map when
+  // available; otherwise infer from synth mids (Yes mid >= 0.99). Null if the
+  // fallback option resolved (no named winner).
+  let winnerId: number | null = null;
+  if (allSettled) {
+    if (backendWinnerByOutcome.size > 0) {
+      for (const [oid, won] of backendWinnerByOutcome.entries()) {
+        if (won && question.namedOutcomes.includes(oid)) {
+          winnerId = oid;
+          break;
+        }
+      }
+    }
+    if (winnerId === null) {
+      winnerId = options.find((o) => (o.yesPct ?? 0) >= 0.99)?.outcomeId ?? null;
+    }
+  }
   const winnerName = winnerId !== null
     ? options.find((o) => o.outcomeId === winnerId)?.name ?? null
     : null;
@@ -250,18 +365,17 @@ function QuestionInner() {
           <h1 className="text-2xl font-semibold tracking-tight text-on-surface sm:text-3xl">
             {qTitle}
           </h1>
-          {/* Phase L — Settled badge + winner inline */}
+          {/* Phase L — Settled badge + winner inline. winnerName === null
+              + allSettled = fallback wins (oracle 실패 / 모든 named No). */}
           {allSettled && (
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary ring-1 ring-primary/40">
               ✓ Settled
-              {winnerName && (
-                <>
-                  <span className="text-on-surface-muted">·</span>
-                  <span className="normal-case tracking-normal text-on-surface">
-                    {winnerName} won
-                  </span>
-                </>
-              )}
+              <span className="text-on-surface-muted">·</span>
+              <span className="normal-case tracking-normal text-on-surface">
+                {winnerName
+                  ? `${winnerName} won`
+                  : 'no named winner (fallback)'}
+              </span>
             </span>
           )}
         </div>
