@@ -187,6 +187,20 @@ function QuestionInner() {
   const qTitle = questionLabel(question.name, question.description ?? '');
   const exp = expiryCountdown(question.description);
 
+  // Phase L — settled state. Settled = backend marked all namedOutcomes as
+  // settled OR every option has a hard-resolved mid (0.0 or 1.0). Winner is
+  // the option whose Yes mid is ≥ 0.99 (the resolution price). Null otherwise.
+  const settledSet = new Set(question.settledNamedOutcomes);
+  const allSettled =
+    question.namedOutcomes.length > 0 &&
+    question.namedOutcomes.every((id) => settledSet.has(id));
+  const winnerId = allSettled
+    ? options.find((o) => (o.yesPct ?? 0) >= 0.99)?.outcomeId ?? null
+    : null;
+  const winnerName = winnerId !== null
+    ? options.find((o) => o.outcomeId === winnerId)?.name ?? null
+    : null;
+
   // "Best upside" = option whose ask-side walk has the largest cumulative
   // max profit (size − cost). The option a buyer would pile into if their
   // only goal is absolute payout, ignoring conviction. Null when no asks
@@ -232,20 +246,40 @@ function QuestionInner() {
       </div>
 
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-on-surface sm:text-3xl">
-          {qTitle}
-        </h1>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-on-surface sm:text-3xl">
+            {qTitle}
+          </h1>
+          {/* Phase L — Settled badge + winner inline */}
+          {allSettled && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-primary ring-1 ring-primary/40">
+              ✓ Settled
+              {winnerName && (
+                <>
+                  <span className="text-on-surface-muted">·</span>
+                  <span className="normal-case tracking-normal text-on-surface">
+                    {winnerName} won
+                  </span>
+                </>
+              )}
+            </span>
+          )}
+        </div>
         {qTitle !== question.name && (
           <p className="text-xs text-on-surface-muted">{question.name}</p>
         )}
         <p className="text-[11px] text-on-surface-muted/70">
-          question #{question.question} · {question.namedOutcomes.length} options · fallback
-          outcome #{question.fallbackOutcome}
+          question #{question.question} · {question.namedOutcomes.length} options
+          {!allSettled && (
+            <>
+              {' · fallback outcome #'}{question.fallbackOutcome}
+            </>
+          )}
           {exp && (
             <>
               {' · '}
               <span className={exp.expired ? 'text-accent-down' : 'text-on-surface'}>
-                {exp.label}
+                {allSettled ? 'closed' : exp.label}
               </span>
             </>
           )}
@@ -258,6 +292,9 @@ function QuestionInner() {
           {options.map((opt) => {
             const on = opt.outcomeId === activeOutcomeId;
             const ask = askByOutcome.get(opt.outcomeId);
+            // Phase L — settled state per-option
+            const isWinner = allSettled && opt.outcomeId === winnerId;
+            const isLoser = allSettled && winnerId !== null && !isWinner;
             return (
               <button
                 key={opt.outcomeId}
@@ -266,15 +303,29 @@ function QuestionInner() {
                 aria-pressed={on}
                 className={clsx(
                   'flex w-full flex-col gap-1.5 rounded-2xl border px-4 py-3 text-left transition-colors',
-                  on
-                    ? 'border-primary bg-primary/10'
-                    : 'border-divider bg-surface-elevated hover:border-primary/50',
+                  isWinner
+                    ? 'border-primary bg-primary/20'
+                    : isLoser
+                      ? 'border-divider/40 bg-surface-elevated/40 opacity-60'
+                      : on
+                        ? 'border-primary bg-primary/10'
+                        : 'border-divider bg-surface-elevated hover:border-primary/50',
                 )}
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="flex items-center gap-2 truncate font-medium text-on-surface">
                     <span className="truncate">{opt.name}</span>
-                    {opt.outcomeId === bestUpsideId && (
+                    {isWinner && (
+                      <span className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-on-primary">
+                        ✓ Won
+                      </span>
+                    )}
+                    {isLoser && (
+                      <span className="shrink-0 rounded-full bg-surface px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-on-surface-subtle">
+                        Lost
+                      </span>
+                    )}
+                    {!allSettled && opt.outcomeId === bestUpsideId && (
                       <span
                         className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary ring-1 ring-primary/40"
                         title="Largest cumulative max profit across this question's options. Buying out all asks here returns the most if this option wins."
@@ -283,7 +334,10 @@ function QuestionInner() {
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0 font-mono text-lg font-semibold text-primary">
+                  <span className={clsx(
+                    'shrink-0 font-mono text-lg font-semibold',
+                    isWinner ? 'text-primary' : isLoser ? 'text-on-surface-subtle' : 'text-primary',
+                  )}>
                     {pct(opt.yesPct, 1)}
                   </span>
                 </div>
@@ -370,7 +424,8 @@ function QuestionInner() {
         </section>
       )}
 
-      {activeOption && (
+      {/* Phase L — settled 시 TradeWidget 숨김. 더 이상 거래 불가. */}
+      {activeOption && !allSettled && (
         <TradeWidget
           assetKey={activeAssetKey}
           sideName={`${activeOption.name} · Yes`}

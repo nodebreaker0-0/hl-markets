@@ -26,7 +26,7 @@ import {
 } from '@/lib/api';
 import { fetchOrderBook, type OrderBook } from '@/lib/orderbook';
 import { CURRENT_NETWORK } from '@/lib/network';
-import { outcomeLabel } from '@/lib/outcome-question';
+import { outcomeLabel, optionLabel, questionLabel } from '@/lib/outcome-question';
 import { assetIdFromKey } from '@/lib/asset-id';
 
 export interface TradeContext {
@@ -39,6 +39,12 @@ export interface TradeContext {
   assetId: number;
   midPct: number;
   book: OrderBook | null;
+  /** T-X-105 — question context (if outcome belongs to one). null = standalone. */
+  questionTitle: string | null;
+  /** T-X-105 — true if outcome is the question's fallback (esoteric option). */
+  isFallback: boolean;
+  /** T-X-105 — total named options in the question (for breadcrumb). */
+  questionNamedCount: number | null;
 }
 
 export default function TradePage(): JSX.Element {
@@ -79,16 +85,37 @@ export default function TradePage(): JSX.Element {
         const book = await fetchOrderBook(CURRENT_NETWORK, assetKey).catch(() => null);
         const assetId = assetIdFromKey(assetKey, meta);
         if (cancel) return;
+
+        // T-X-105 — find the question that contains this outcome. resolves
+        // "Fallback" / "Recurring Named Outcome" generic labels into something
+        // human-readable, using priceBucket DSL etc.
+        const q = meta.questions.find(
+          (qq) =>
+            qq.namedOutcomes.includes(outcomeId) || qq.fallbackOutcome === outcomeId,
+        );
+        const isFallback = q?.fallbackOutcome === outcomeId;
+        let resolvedName: string;
+        if (q && isFallback) {
+          resolvedName = 'None of the above (fallback)';
+        } else if (q) {
+          resolvedName = optionLabel(outcome.name, outcome.description ?? '', q.description ?? '');
+        } else {
+          resolvedName = outcomeLabel(outcome.name, outcome.description ?? '');
+        }
+
         setCtx({
           outcomeId,
           sideIdx,
           sideName,
-          outcomeName: outcomeLabel(outcome.name, outcome.description ?? ''),
+          outcomeName: resolvedName,
           outcomeDescription: outcome.description ?? '',
           assetKey,
           assetId,
           midPct: mid * 100,
           book,
+          questionTitle: q ? questionLabel(q.name, q.description ?? '') : null,
+          isFallback: Boolean(isFallback),
+          questionNamedCount: q ? q.namedOutcomes.length : null,
         });
       } catch (e) {
         if (!cancel) setErr((e as Error).message);

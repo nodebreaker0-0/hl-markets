@@ -130,29 +130,63 @@ export default function SettingsPage(): JSX.Element {
         </div>
       </section>
 
-      <KeyCard
-        title="OpenAI API key"
-        placeholder="sk-proj-..."
-        value={openaiInput}
-        onChange={setOpenaiInput}
-        onSave={onSaveOpenai}
-        onTest={() => void onTest('openai')}
-        testing={testing === 'openai'}
-        savedKey={keys.openai}
-        helper="Model: gpt-4o-mini · ~$0.001 / analysis"
-      />
+      {/* T-X-102 — Preferred provider 에 따라 해당 KeyCard 만 풀로 표시.
+          비선택 provider 는 작은 "Add … key (optional)" 버튼 → 클릭 시 expand.
+          Disable (preferred=null) 면 둘 다 풀로 표시 (초기 onboarding). */}
+      {(keys.preferred === null || keys.preferred === 'openai') && (
+        <KeyCard
+          title="OpenAI API key"
+          placeholder="sk-proj-..."
+          value={openaiInput}
+          onChange={setOpenaiInput}
+          onSave={onSaveOpenai}
+          onTest={() => void onTest('openai')}
+          testing={testing === 'openai'}
+          savedKey={keys.openai}
+          helper="Model: gpt-4o-mini · ~$0.001 / analysis"
+          getKeyUrl="https://platform.openai.com/api-keys"
+          getKeyHint="sign in → '+ Create new secret key' → copy sk-proj-…"
+        />
+      )}
 
-      <KeyCard
-        title="Anthropic API key"
-        placeholder="sk-ant-..."
-        value={anthropicInput}
-        onChange={setAnthropicInput}
-        onSave={onSaveAnthropic}
-        onTest={() => void onTest('anthropic')}
-        testing={testing === 'anthropic'}
-        savedKey={keys.anthropic}
-        helper="Model: claude-3-5-sonnet · ~$0.01 / analysis"
-      />
+      {(keys.preferred === null || keys.preferred === 'anthropic') && (
+        <KeyCard
+          title="Anthropic API key"
+          placeholder="sk-ant-..."
+          value={anthropicInput}
+          onChange={setAnthropicInput}
+          onSave={onSaveAnthropic}
+          onTest={() => void onTest('anthropic')}
+          testing={testing === 'anthropic'}
+          savedKey={keys.anthropic}
+          helper="Model: claude-3-5-sonnet · ~$0.01 / analysis"
+          getKeyUrl="https://console.anthropic.com/settings/keys"
+          getKeyHint="sign in → 'Create Key' → copy sk-ant-…"
+        />
+      )}
+
+      {/* 비선택 provider — collapsed link 로 표시. 사용자가 두 번째 key 도 등록하려면
+          PREFERRED 토글에서 그 provider 로 바꿔서 입력하면 됨. */}
+      {keys.preferred === 'openai' && (
+        <CollapsedHint
+          title={keys.anthropic ? 'Anthropic key saved (not preferred)' : 'Add Anthropic key (optional)'}
+          hint={
+            keys.anthropic
+              ? 'Switch via PREFERRED PROVIDER above to use Anthropic.'
+              : 'Switch via PREFERRED PROVIDER above to add a key.'
+          }
+        />
+      )}
+      {keys.preferred === 'anthropic' && (
+        <CollapsedHint
+          title={keys.openai ? 'OpenAI key saved (not preferred)' : 'Add OpenAI key (optional)'}
+          hint={
+            keys.openai
+              ? 'Switch via PREFERRED PROVIDER above to use OpenAI.'
+              : 'Switch via PREFERRED PROVIDER above to add a key.'
+          }
+        />
+      )}
 
       <KeyCard
         title="Tavily API key (optional — web search)"
@@ -173,6 +207,8 @@ export default function SettingsPage(): JSX.Element {
         testing={false}
         savedKey={keys.tavily ?? null}
         helper="When set, AI Analyze fetches 5 web results before the LLM call · ~$0.00 / call on dev tier"
+        getKeyUrl="https://app.tavily.com/home"
+        getKeyHint="free · sign up → dashboard 우상단 'API Key'"
       />
 
       <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
@@ -200,6 +236,8 @@ export default function SettingsPage(): JSX.Element {
         testing={false}
         savedKey={keys.footballData ?? null}
         helper="Free tier: ~10 calls/min · used to enrich sports outcomes (team form, H2H, league standing)"
+        getKeyUrl="https://www.football-data.org/client/register"
+        getKeyHint="free · register → email 로 token 발송"
       />
 
       <KeyCard
@@ -217,6 +255,8 @@ export default function SettingsPage(): JSX.Element {
         testing={false}
         savedKey={keys.fred ?? null}
         helper="St. Louis Fed · free · CPI, unemployment, GDP, fed funds rate, PPI"
+        getKeyUrl="https://fredaccount.stlouisfed.org/apikey"
+        getKeyHint="free · St. Louis Fed account → 'Request API Key'"
       />
 
       <KeyCard
@@ -234,6 +274,8 @@ export default function SettingsPage(): JSX.Element {
         testing={false}
         savedKey={keys.openweather ?? null}
         helper="Free tier: 60 calls/min · used for weather-bet outcomes"
+        getKeyUrl="https://home.openweathermap.org/api_keys"
+        getKeyHint="free · sign up → 'API keys' 탭 → default key 복사"
       />
 
       <section className="rounded-2xl border border-accent-down/30 bg-accent-down/5 p-4 text-xs text-on-surface">
@@ -290,6 +332,8 @@ function KeyCard({
   testing,
   savedKey,
   helper,
+  getKeyUrl,
+  getKeyHint,
 }: {
   title: string;
   placeholder: string;
@@ -300,14 +344,33 @@ function KeyCard({
   testing: boolean;
   savedKey: string | null;
   helper: string;
+  /** Where to obtain the key (provider's API key page). */
+  getKeyUrl?: string;
+  /** Short step hint shown next to the "Get key" link (e.g. "free · sign up → API keys"). */
+  getKeyHint?: string;
 }): JSX.Element {
   const masked = savedKey ? `${savedKey.slice(0, 7)}…${savedKey.slice(-4)}` : 'not set';
   return (
     <section className="rounded-2xl border border-divider bg-surface-elevated p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-semibold text-on-surface">{title}</div>
         <code className="mono text-[10px] text-on-surface-muted">{masked}</code>
       </div>
+      {getKeyUrl && (
+        // T-X-101 — key 발급 가이드. Settings 사용성 ↑ (사용자 own key 정책이지만
+        // 어디서 받는지 모르면 정책 자체가 막힘).
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[10px] text-on-surface-muted">
+          <a
+            href={getKeyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-primary hover:underline"
+          >
+            Get key →
+          </a>
+          {getKeyHint && <span>· {getKeyHint}</span>}
+        </div>
+      )}
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <input
           type="password"
@@ -339,6 +402,19 @@ function KeyCard({
         </div>
       </div>
       <div className="mt-2 text-[10px] text-on-surface-muted">{helper}</div>
+    </section>
+  );
+}
+
+// T-X-102 — 비선택 provider 의 작은 hint card.
+function CollapsedHint({ title, hint }: { title: string; hint: string }): JSX.Element {
+  return (
+    <section className="rounded-2xl border border-divider/40 bg-surface-elevated/40 px-4 py-2.5 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-on-surface-muted">{title}</div>
+        <span className="text-[10px] uppercase tracking-widest text-on-surface-subtle">collapsed</span>
+      </div>
+      <div className="mt-0.5 text-[10px] text-on-surface-subtle">{hint}</div>
     </section>
   );
 }

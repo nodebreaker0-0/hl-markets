@@ -82,8 +82,11 @@ function QuestionCardImpl({
   mids,
 }: Extract<Props, { variant: 'question' }>) {
   const { mode } = useUiMode();
-  const pathname = usePathname() ?? '/';
-  const sheetHref = `${pathname}?sheet=outcome&id=${question.fallbackOutcome}&qid=${question.question}`;
+  // T-X-106 — question 카드 클릭 시 fallback outcome sheet 띄우지 않고
+  // 모든 옵션 보이는 question page (`/q/?id=…`) 로 바로 navigate.
+  // fallback outcome 은 escape hatch (oracle 실패 시 redeem) 라 사용자한테
+  // misleading. /q page 에서 49 옵션 다 보고 각 옵션 별 buy 가능.
+  const sheetHref = `/q/?id=${question.question}`;
   const options = question.namedOutcomes
     .map((id) => {
       const o = outcomeMap.get(id);
@@ -218,7 +221,6 @@ function QuestionCardImpl({
               {exp.label}
             </span>
           )}
-          <span>fallback #{question.fallbackOutcome}</span>
         </div>
       </div>
 

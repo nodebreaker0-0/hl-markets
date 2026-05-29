@@ -4,6 +4,7 @@
 // validatorL1Votes + validatorSummaries via lib/api.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 import { ArbAlerts } from '@/components/ArbAlerts';
 import { EndingSoon } from '@/components/EndingSoon';
@@ -92,6 +93,22 @@ function titleFor(item: GovernanceItem): string {
 const SS_TAB = 'hl-markets:tab';
 const TABS: readonly Tab[] = ['active', 'markets', 'historical'] as const;
 
+/** T-X-107 — URL `?tab=` query alias → Tab. 'pending' is friendlier than
+ *  'active' in URLs and matches the home page link. */
+const URL_TAB_ALIAS: Record<string, Tab> = {
+  active: 'active',
+  pending: 'active',
+  markets: 'markets',
+  trading: 'markets',
+  historical: 'historical',
+  settled: 'historical',
+};
+
+function tabFromUrl(v: string | null): Tab | null {
+  if (!v) return null;
+  return URL_TAB_ALIAS[v.toLowerCase()] ?? null;
+}
+
 function readStoredTab(): Tab {
   if (typeof window === 'undefined') return 'active';
   const v = window.sessionStorage.getItem(SS_TAB);
@@ -103,13 +120,21 @@ export default function HomePage() {
   // twice — once per network — so there's no in-app toggle.
   const network: Network = CURRENT_NETWORK;
 
+  const sp = useSearchParams();
   const [tab, setTab] = useState<Tab>('active');
   const [hydrated, setHydrated] = useState(false);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    setTab(readStoredTab());
+    // T-X-107 — priority: URL `?tab=` > sessionStorage > default 'active'.
+    // URL-driven so home page deep-link (e.g. ?tab=pending) lands on the
+    // right tab. sessionStorage holds the user's last manual selection.
+    const urlTab = tabFromUrl(sp.get('tab'));
+    setTab(urlTab ?? readStoredTab());
     setHydrated(true);
+    // intentional: read query only at mount. SearchParams change within the
+    // page (e.g. ?sheet=outcome&id=…) shouldn't reshuffle the tab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

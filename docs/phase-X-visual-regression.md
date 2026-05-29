@@ -123,6 +123,26 @@
 ✅ Helper — "IOC market at best ask + 2% slip · buy fee 0 (HIP-4) · sell fee 5 bps on close"
 ✅ Footer — "← Edit" link + "Place bet · $50" full-width primary CTA
 
+### 2.13 실 fire 검증 — Buy graceful error + Sell live fill (T-X-103c)
+
+테스트넷에서 click → real network fire 검증.
+
+**Buy attempt** (`/trade?id=10287&step=2&side=yes&amount=10`):
+- BTC ≥ $74,031 outcome 의 orderbook 이 비어있음 (liquidity 0).
+- Place bet · $10 클릭 → red inline error: **"No sellers right now — try again in a moment."**
+- error path 정상. button 은 재클릭 가능 상태 유지. step=3 redirect 안 일어남.
+- → graceful degrade ✓
+
+**Sell fire** (`/portfolio` Germany · Yes CASH OUT 100%):
+- 95 shares @ best bid $0.111 → notional $10.55 (HL min $10 통과).
+- 클릭 → agent sign (0 popup, IndexedDB privkey) → IOC submit.
+- 5초 후 Portfolio 자동 refresh:
+  - HOLDINGS 에서 Germany 카드 사라짐 ✓
+  - RECENT FILLS 가장 위 `Sell 95 Germany @ 0.111 (-$79.71)` · `0s ago` 표시 ✓
+  - $10.55 free USDC 회수, entry $90.25 → −$79.71 realized loss.
+- HF response `statuses[0].filled` parse 정상.
+- → placeMarketSell + agent signing + auto-refresh 한 사이클 모두 작동 ✓
+
 ---
 
 ## 3. 모바일 viewport (375 × 812)

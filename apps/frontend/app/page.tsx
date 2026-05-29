@@ -94,7 +94,7 @@ export default function HomePage(): JSX.Element {
               Trading markets →
             </Link>
             <Link
-              href="/markets/pending"
+              href="/markets/?tab=pending"
               className="text-body-sm text-on-surface-muted transition-colors hover:text-on-surface"
             >
               Pending governance · Historical →

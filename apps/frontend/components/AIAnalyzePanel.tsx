@@ -1,22 +1,29 @@
 'use client';
 
-// Phase M — AI Analyze panel.
+// T-X-100 — AIAnalyzePanel deep agent swap.
 //
-// Sits below SimpleTradeWidget (or anywhere with outcome context). User
-// clicks "Analyze" → direct browser → LLM call with stored key → fair %
-// gauge + reasoning bullets + "Use $X" CTA that pre-fills the bet input.
+// 기존 Phase M shallow analyzer (`analyzeOutcome`) → Phase U deep agent
+// (`analyzeOutcomeDeep`) 로 교체. 차이:
+//
+//   • shallow = single LLM call with markdown context (peer prices, book summary).
+//   • deep    = category dispatch → SKILL.md system prompt → domain fetcher
+//               (CoinGecko / Tavily / FRED / football-data / OpenWeather) →
+//               LLM call with structured signals → Zod-validated AnalystOutput.
+//
+// UI 는 fairPct + edge + confidence gauge + reasoning bullets + (new) sources
+// links + (new) raw signals chip 표시. quarter-Kelly 사이즈 제안 + onSuggestAmount
+// callback 은 그대로 보존.
+//
+// Constitution V (keys are user-owned, server never sees them) 정합 — keys 는
+// 여전히 localStorage 에서 load + 직접 browser → provider 호출.
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import clsx from 'clsx';
-import {
-  loadKeys,
-  analyzeOutcome,
-  type LlmProvider,
-  type AnalysisResult,
-  type AnalyzeInput,
-} from '@/lib/llm';
-import { searchTavily, formatSearchBlob } from '@/lib/search';
+import { loadKeys } from '@/lib/llm';
+import { analyzeOutcomeDeep, type DeepAgentKeys } from '@/lib/agents/orchestrator';
+import type { AnalystOutput } from '@/lib/agents/types';
+import type { LlmProvider } from '@/lib/llm-raw';
 import { pushToast } from '@/lib/toast';
 
 interface Props {
@@ -27,14 +34,18 @@ interface Props {
   expiry?: string;
   /** Multi-option question umbrella, when applicable. */
   questionTitle?: string;
-  /** Peer outcome prices for relative context (top 8). */
+  /** Outcome id — used for diagnostics / future logging. Optional. */
+  outcomeId?: number;
+  /** Peer outcome prices for relative context (top 8). Currently unused by
+   *  deep agent (which uses fetcher signals instead), but kept in the prop
+   *  signature so existing callers don't break. */
   peerOutcomes?: { name: string; pct: number }[];
   peerSumPct?: number;
-  /** One-line orderbook summary. */
+  /** One-line orderbook summary. Unused by deep agent — kept for compat. */
   bookSummary?: string;
-  /** User's existing position on this side, USD. */
+  /** User's existing position on this side, USD. Unused by deep agent. */
   userPositionUsd?: number;
-  /** Recent candle summary, e.g. "48.4% → +2.3pp in 24h". */
+  /** Recent candle summary. Unused by deep agent. */
   recentPriceBlob?: string;
   /** Called when user clicks "Use $X" — receives suggested USD amount. */
   onSuggestAmount?: (usd: number) => void;
@@ -44,23 +55,17 @@ interface Props {
 
 export function AIAnalyzePanel({
   outcomeName,
-  sideName,
   description,
   currentPct,
-  expiry,
   questionTitle,
-  peerOutcomes,
-  peerSumPct,
-  bookSummary,
-  userPositionUsd,
-  recentPriceBlob,
+  outcomeId,
   onSuggestAmount,
   freeUsdc,
 }: Props): JSX.Element {
   const [keys, setKeys] = useState(() => loadKeys());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [result, setResult] = useState<AnalystOutput | null>(null);
 
   // Refresh keys from localStorage in case user updated them in another tab
   // or just came back from /settings.
@@ -85,40 +90,24 @@ export function AIAnalyzePanel({
     setErr(null);
     setResult(null);
     try {
-      // Tier 2 — if user supplied a Tavily key, do a quick search first and
-      // inject the top hits into the LLM prompt.
-      let webContext: string | undefined;
-      if (keys.tavily) {
-        try {
-          const query = `${questionTitle ?? outcomeName} ${outcomeName} probability news`;
-          const hits = await searchTavily(keys.tavily, query, 5);
-          webContext = formatSearchBlob(hits);
-        } catch (e) {
-          // Search failed — degrade gracefully, run LLM without web context.
-          pushToast({
-            tone: 'info',
-            message: 'Web search skipped',
-            detail: (e as Error).message,
-            ttlMs: 3000,
-          });
-        }
-      }
-
-      const input: AnalyzeInput = {
-        outcomeName,
-        sideName,
-        description,
-        currentPct,
-        expiry,
-        questionTitle,
-        peerOutcomes,
-        peerSumPct,
-        bookSummary,
-        userPositionUsd,
-        recentPriceBlob,
-        webContext,
+      const agentKeys: DeepAgentKeys = {
+        provider,
+        llmKey: activeKey,
+        tavily: keys.tavily ?? null,
+        footballData: keys.footballData ?? null,
+        fred: keys.fred ?? null,
+        openweather: keys.openweather ?? null,
       };
-      const r = await analyzeOutcome(provider, activeKey, input);
+      const r = await analyzeOutcomeDeep(
+        {
+          outcomeId: outcomeId ?? 0,
+          outcomeName,
+          description,
+          questionTitle,
+          marketPct: currentPct,
+        },
+        agentKeys,
+      );
       setResult(r);
     } catch (e) {
       const msg = (e as Error).message;
@@ -153,7 +142,7 @@ export function AIAnalyzePanel({
     <section className="rounded-2xl border border-divider bg-surface-elevated p-3">
       <div className="flex items-center justify-between">
         <div className="text-[10px] uppercase tracking-widest text-on-surface-muted">
-          AI Analyze · {provider}
+          AI Analyze · deep · {provider}
         </div>
         <button
           type="button"
@@ -187,6 +176,30 @@ export function AIAnalyzePanel({
               ))}
             </ul>
           )}
+          {result.sources.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {result.sources.map((s, i) => (
+                <SourceChip key={i} source={s} />
+              ))}
+            </div>
+          )}
+          {Object.keys(result.rawSignals).length > 0 && (
+            <details className="rounded-lg bg-surface/40 px-2 py-1.5">
+              <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-on-surface-muted hover:text-on-surface">
+                Raw signals ({Object.keys(result.rawSignals).length})
+              </summary>
+              <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                {Object.entries(result.rawSignals).map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-2">
+                    <dt className="truncate text-on-surface-muted">{k}</dt>
+                    <dd className="mono shrink-0 tabular-nums text-on-surface">
+                      {typeof v === 'number' ? formatSignal(v) : String(v)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+          )}
           {result.caveat && (
             <div className="text-[10px] italic text-on-surface-muted">⚠ {result.caveat}</div>
           )}
@@ -207,12 +220,40 @@ export function AIAnalyzePanel({
             </button>
           )}
           <div className="text-center text-[10px] text-on-surface-muted">
-            Est cost: ${result.estCostUsd.toFixed(4)} · You sign every bet · AI never auto-trades
+            You sign every bet · AI never auto-trades
           </div>
         </div>
       )}
     </section>
   );
+}
+
+function SourceChip({ source }: { source: { label: string; url?: string } }): JSX.Element {
+  const cls =
+    'inline-flex max-w-[140px] truncate rounded-full bg-surface px-2 py-0.5 text-[10px] text-on-surface-muted ring-1 ring-divider hover:text-on-surface';
+  if (source.url) {
+    return (
+      <a href={source.url} target="_blank" rel="noopener noreferrer" className={cls}>
+        {source.label}
+      </a>
+    );
+  }
+  return <span className={cls}>{source.label}</span>;
+}
+
+/** Compact number formatter — keeps signals readable.
+ *  72669.5  → "72,670"
+ *  -1.6371  → "-1.64"
+ *  43505047487 → "43.51B"
+ *  3.49     → "3.49" */
+function formatSignal(n: number): string {
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+  if (abs >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (abs === 0) return '0';
+  if (abs < 0.01) return n.toExponential(2);
+  return n.toFixed(2);
 }
 
 function Gauge({
@@ -222,7 +263,7 @@ function Gauge({
 }: {
   fairPct: number;
   marketPct: number;
-  confidence: 'low' | 'medium' | 'high';
+  confidence: 'low' | 'med' | 'high';
 }): JSX.Element {
   const edge = fairPct - marketPct;
   const edgeTone =
@@ -234,8 +275,6 @@ function Gauge({
           <span className="text-[10px] uppercase tracking-widest text-on-surface-muted">
             AI fair
           </span>
-          {/* W-12 — fair % 가 big-number-md hero (D-005). Constitution XIV 정합
-              — reasoning prose 와 동등 weight 로 사용자가 추론 흐름 보도록. */}
           <span className="mono text-big-number-md font-bold leading-none text-primary tabular-nums">
             {fairPct.toFixed(1)}%
           </span>
@@ -259,7 +298,7 @@ function Gauge({
             'rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest',
             confidence === 'high'
               ? 'bg-primary/15 text-primary'
-              : confidence === 'medium'
+              : confidence === 'med'
                 ? 'bg-status-warn/15 text-status-warn'
                 : 'bg-surface text-on-surface-muted',
           )}
@@ -272,7 +311,7 @@ function Gauge({
 }
 
 function computeSuggestedUsd(
-  result: AnalysisResult | null,
+  result: AnalystOutput | null,
   marketPct: number,
   freeUsdc?: number,
 ): number {

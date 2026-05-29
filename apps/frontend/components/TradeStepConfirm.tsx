@@ -83,15 +83,33 @@ export function TradeStepConfirm({ ctx }: { ctx: TradeContext }): JSX.Element {
     }
   }
 
+  // T-X-105: 매수 가능 여부 — best ask 없으면 fill 불가.
+  const hasAsk = askPx > 0 && askSz > 0;
+  const placeBlocked = ctx.isFallback || !hasAsk;
+  const blockedReason = ctx.isFallback
+    ? 'Fallback option — not a real bet target'
+    : !hasAsk
+      ? 'No offers right now — orderbook empty'
+      : '';
+
   return (
     <div className="flex flex-col gap-2xl">
       <section className="flex flex-col gap-md">
         <span className="text-caption uppercase tracking-widest text-on-surface-muted">
-          Review your bet
+          {ctx.questionTitle
+            ? <>question · <span className="text-on-surface">{ctx.questionTitle}</span></>
+            : 'Review your bet'}
         </span>
         <h1 className="text-h1 font-bold leading-tight text-on-surface">
           {ctx.outcomeName}
         </h1>
+        {ctx.isFallback && (
+          <div className="rounded-lg border border-status-warn/30 bg-status-warn/5 px-base py-md text-body-sm text-on-surface">
+            ⚠ This is the <strong>fallback</strong> option — only resolves Yes if
+            every other option resolves No. Real probability is usually near 0%
+            and the orderbook is typically empty.
+          </div>
+        )}
       </section>
 
       {/* Summary card */}
@@ -137,10 +155,10 @@ export function TradeStepConfirm({ ctx }: { ctx: TradeContext }): JSX.Element {
         <button
           type="button"
           onClick={() => void onSign()}
-          disabled={busy || !session}
+          disabled={busy || !session || placeBlocked}
           className={clsx(
             'flex-1 rounded-md px-base py-md text-button font-bold transition-colors',
-            busy || !session
+            busy || !session || placeBlocked
               ? 'cursor-not-allowed bg-divider text-on-surface-disabled'
               : 'bg-primary text-on-primary hover:bg-primary-bright',
           )}
@@ -149,7 +167,9 @@ export function TradeStepConfirm({ ctx }: { ctx: TradeContext }): JSX.Element {
             ? 'Signing & placing…'
             : !session
               ? 'Connect wallet first'
-              : `Place bet · $${usdAmount.toFixed(0)}`}
+              : placeBlocked
+                ? blockedReason
+                : `Place bet · $${usdAmount.toFixed(0)}`}
         </button>
       </div>
 
